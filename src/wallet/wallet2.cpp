@@ -2828,8 +2828,8 @@ void wallet2::update_pool_state(bool refreshed)
   std::vector<std::pair<crypto::hash, bool>> txids;
   for (const auto &txid: res.tx_hashes)
   {
-      txids.push_back({txid, true});
 //    bool txid_found_in_up = false;
+      txids.push_back({txid, true});
 //    for (const auto &up: m_unconfirmed_payments)
 //    {
 //      if (up.second.m_pd.m_tx_hash == txid)
