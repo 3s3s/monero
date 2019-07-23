@@ -2828,63 +2828,64 @@ void wallet2::update_pool_state(bool refreshed)
   std::vector<std::pair<crypto::hash, bool>> txids;
   for (const auto &txid: res.tx_hashes)
   {
-    bool txid_found_in_up = false;
-    for (const auto &up: m_unconfirmed_payments)
-    {
-      if (up.second.m_pd.m_tx_hash == txid)
-      {
-        txid_found_in_up = true;
-        break;
-      }
-    }
-    if (m_scanned_pool_txs[0].find(txid) != m_scanned_pool_txs[0].end() || m_scanned_pool_txs[1].find(txid) != m_scanned_pool_txs[1].end())
-    {
-      // if it's for us, we want to keep track of whether we saw a double spend, so don't bail out
-      if (!txid_found_in_up)
-      {
-        LOG_PRINT_L2("Already seen " << txid << ", and not for us, skipped");
-        continue;
-      }
-    }
-    if (!txid_found_in_up)
-    {
-      LOG_PRINT_L1("Found new pool tx: " << txid);
-      bool found = false;
-      for (const auto &i: m_unconfirmed_txs)
-      {
-        if (i.first == txid)
-        {
-          found = true;
-          // if this is a payment to yourself at a different subaddress account, don't skip it
-          // so that you can see the incoming pool tx with 'show_transfers' on that receiving subaddress account
-          const unconfirmed_transfer_details& utd = i.second;
-          for (const auto& dst : utd.m_dests)
-          {
-            auto subaddr_index = m_subaddresses.find(dst.addr.m_spend_public_key);
-            if (subaddr_index != m_subaddresses.end() && subaddr_index->second.major != utd.m_subaddr_account)
-            {
-              found = false;
-              break;
-            }
-          }
-          break;
-        }
-      }
-      if (!found)
-      {
-        // not one of those we sent ourselves
-        txids.push_back({txid, false});
-      }
-      else
-      {
-        LOG_PRINT_L1("We sent that one");
-      }
-    }
-    else
-    {
-      LOG_PRINT_L1("Already saw that one, it's for us");
       txids.push_back({txid, true});
-    }
+//    bool txid_found_in_up = false;
+//    for (const auto &up: m_unconfirmed_payments)
+//    {
+//      if (up.second.m_pd.m_tx_hash == txid)
+//      {
+//        txid_found_in_up = true;
+//        break;
+//      }
+//    }
+//    if (m_scanned_pool_txs[0].find(txid) != m_scanned_pool_txs[0].end() || m_scanned_pool_txs[1].find(txid) != m_scanned_pool_txs[1].end())
+//    {
+//      // if it's for us, we want to keep track of whether we saw a double spend, so don't bail out
+//      if (!txid_found_in_up)
+//      {
+//        LOG_PRINT_L2("Already seen " << txid << ", and not for us, skipped");
+//        continue;
+//      }
+//    }
+//    if (!txid_found_in_up)
+//    {
+//      LOG_PRINT_L1("Found new pool tx: " << txid);
+//      bool found = false;
+//      for (const auto &i: m_unconfirmed_txs)
+//      {
+//        if (i.first == txid)
+//        {
+//          found = true;
+//          // if this is a payment to yourself at a different subaddress account, don't skip it
+//          // so that you can see the incoming pool tx with 'show_transfers' on that receiving subaddress account
+//          const unconfirmed_transfer_details& utd = i.second;
+//          for (const auto& dst : utd.m_dests)
+//          {
+//            auto subaddr_index = m_subaddresses.find(dst.addr.m_spend_public_key);
+//            if (subaddr_index != m_subaddresses.end() && subaddr_index->second.major != utd.m_subaddr_account)
+//            {
+//              found = false;
+//              break;
+//            }
+//          }
+//          break;
+//        }
+//      }
+//      if (!found)
+//      {
+//        // not one of those we sent ourselves
+//        txids.push_back({txid, false});
+//      }
+//      else
+//      {
+//        LOG_PRINT_L1("We sent that one");
+//      }
+//    }
+//    else
+//    {
+//      LOG_PRINT_L1("Already saw that one, it's for us");
+//      txids.push_back({txid, true});
+//    }
   }
 
   // get those txes
