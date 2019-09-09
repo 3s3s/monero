@@ -1040,7 +1040,7 @@ if(BUILD_DOCUMENTATION)
 endif()
 
 # when ON - will install libwallet_merged into "lib"
-option(BUILD_GUI_DEPS "Build GUI dependencies." OFF)
+option(BUILD_GUI_DEPS "Build GUI dependencies." ON)
 
 # This is not nice, distribution packagers should not enable this, but depend
 # on libunbound shipped with their distribution instead
