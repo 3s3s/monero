@@ -650,10 +650,6 @@ namespace tools {
     command_line::add_arg(desc_params, opts.offline);
   }
 
-  wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended)
-  {
-  }
-
   wallet2::~wallet2()
   {
   }
