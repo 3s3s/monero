@@ -208,26 +208,6 @@ private:
   public:
     static constexpr const std::chrono::seconds rpc_timeout = std::chrono::minutes(3) + std::chrono::seconds(30);
 
-//    // move assignment operator
-//    wallet2_base& operator=(wallet2_base&& other) {
-//      return *this; // TODO
-//    }
-//
-//    // move constructor
-//    wallet2_base(wallet2_base&& other) : wallet2_base(cryptonote::MAINNET, 1, false) {  // TODO: invoke super with default params
-//      // TODO
-//    }
-//
-//    // copy assignment operator
-//    wallet2_base& operator=(wallet2_base& other) {
-//      return *this; // TODO
-//    }
-//
-//    // copy constructor
-//    wallet2_base(wallet2_base& other) : wallet2_base(cryptonote::MAINNET, 1, false) {  // TODO: invoke super with default params
-//      // TODO
-//    }
-
     enum RefreshType {
       RefreshFull,
       RefreshOptimizeCoinbase,
@@ -249,30 +229,11 @@ private:
 
     static const char* tr(const char* str);
 
-    static bool has_testnet_option(const boost::program_options::variables_map& vm);
-    static bool has_stagenet_option(const boost::program_options::variables_map& vm);
-    static std::string device_name_option(const boost::program_options::variables_map& vm);
-    static std::string device_derivation_path_option(const boost::program_options::variables_map &vm);
-    static void init_options(boost::program_options::options_description& desc_params);
-
-    //! Uses stdin and stdout. Returns a wallet2_base if no errors.
-    static std::pair<std::unique_ptr<wallet2_base>, password_container> make_from_json(const boost::program_options::variables_map& vm, bool unattended, const std::string& json_file, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
-
-    //! Uses stdin and stdout. Returns a wallet2_base and password for `wallet_file` if no errors.
-    static std::pair<std::unique_ptr<wallet2_base>, password_container>
-      make_from_file(const boost::program_options::variables_map& vm, bool unattended, const std::string& wallet_file, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
-
-    //! Uses stdin and stdout. Returns a wallet2_base and password for wallet with no file if no errors.
-    static std::pair<std::unique_ptr<wallet2_base>, password_container> make_new(const boost::program_options::variables_map& vm, bool unattended, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
-
-    //! Just parses variables.
-    static std::unique_ptr<wallet2_base> make_dummy(const boost::program_options::variables_map& vm, bool unattended, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
-
     static bool verify_password(const std::string& keys_file_name, const epee::wipeable_string& password, bool no_spend_key, hw::device &hwdev, uint64_t kdf_rounds);
     static bool query_device(hw::device::device_type& device_type, const std::string& keys_file_name, const epee::wipeable_string& password, uint64_t kdf_rounds = 1);
 
     wallet2_base(cryptonote::network_type nettype = cryptonote::MAINNET, uint64_t kdf_rounds = 1, bool unattended = false);
-    virtual ~wallet2_base();
+    ~wallet2_base();
 
     struct multisig_info
     {
