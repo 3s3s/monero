@@ -88,11 +88,8 @@ using namespace std;
 using namespace crypto;
 using namespace cryptonote;
 
-extern "C"
-{
-#include "crypto/keccak.h"
-#include "crypto/crypto-ops.h"
-}
+#undef MONERO_DEFAULT_LOG_CATEGORY
+#define MONERO_DEFAULT_LOG_CATEGORY "wallet.wallet2"
 
 namespace
 {
