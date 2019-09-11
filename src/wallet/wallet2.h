@@ -44,115 +44,8 @@ namespace tools
 
   public:
 
-    // overload move assignment operator
-//    wallet2& operator=(const wallet2&& other)
-//    {
-////      if (this != &other) {
-////        (wallet2&)(*this) = other; // TODO
-////      }
-//      //wallet2::operator=(other);
-//      return *this;
-//    }
-
-//    // overload assignment operator to return derived class
-//    wallet2& operator=(const unique_ptr<wallet2>& other)
-//    {
-////      if (this != &other) {
-////        (wallet2&)(*this) = other; // TODO
-////      }
-//      //wallet2::operator=(other);
-//      return *this;
-//    }
-
-//    Eployee& operator=(const Eployee& empl) {
-//         74.          if ( this != &empl ) {
-//         75.              (Person&)(*this) = empl;
-//         76.              delete [] position;
-//         77.              position = strcpy(new
-//         78.                  char[strlen(empl.position)+1],
-//         79.                  empl.position);
-//         80.              cout << "Assignment Eployee: "
-//         81.                   << position << endl;
-//         82.          }
-//         83.          return *this;
-//         84.      }
-
-//    // move assignment operator
-//    wallet2& operator=(wallet2_base&& other) {
-//      return *this; // TODO
-//    }
-//
-//    // move constructor
-//    wallet2(wallet2_base&& other) : wallet2_base(cryptonote::MAINNET, 1, false) {  // TODO: invoke super with default params
-//      // TODO
-//    }
-
-//    // move assignment operator
-//    wallet2& operator=(const unique_ptr<wallet2>&& other) {
-//      return *this; // TODO
-//    }
-
-//    // move constructor
-//    wallet2(const unique_ptr<wallet2_base>&& other) : wallet2_base(cryptonote::MAINNET, 1, false) {  // TODO: invoke super with default params
-//     // TODO
-//    }
-
-//    // copy assignment operator
-//    wallet2& operator=(wallet2& other) {
-//      return *this; // TODO
-//    }
-//
-//    // copy constructor
-//    wallet2(wallet2& other) : wallet2_base(other) {  // TODO: invoke super with default params
-//      // TODO
-//    }
-
-//    // copy assignment operator
-//    wallet2& operator=(const unique_ptr<wallet2>& other) {
-//      return *this; // TODO
-//    }
-//
-//    // copy assignment operator
-//    wallet2& operator=(const unique_ptr<wallet2_base>& other) {
-//      return *this; // TODO
-//    }
-
-    //using wallet2_base::operator=;
-
-//    wallet2(const unique_ptr<wallet2_base>& other) {
-//      // TODO
-//    }
-
-//    wallet2(const unique_ptr<wallet2>& other) {
-//      // TODO
-//    }
-//
-////    wallet2(const unique_ptr<wallet2_base>&& other) {
-////      // TODO
-////    }
-//
-//    wallet2(const unique_ptr<wallet2>&& other) {
-//      // TODO
-//    }
-
-//    // move assignment operator
-//    wallet2& operator=(const wallet2&& other) {
-//      return *this; // TODO
-//    }
-//
-//    // move constructor
-//    wallet2(const wallet2&& other) : wallet2_base(cryptonote::MAINNET, 1, false) {  // TODO: invoke super with default params
-//      // todo
-//    }
-
-//    wallet2& operator=(wallet2& other) {
-//      return *this; // TODO
-//    }
-
-    //using wallet2_base::operator=;
-
-    wallet2(cryptonote::network_type nettype = cryptonote::MAINNET, uint64_t kdf_rounds = 1, bool unattended = false);
-    ~wallet2();
+    //! Uses stdin and stdout. Returns a wallet2 if no errors.
+    static std::pair<std::unique_ptr<wallet2>, password_container> make_from_json(const boost::program_options::variables_map& vm, bool unattended, const std::string& json_file, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
 
     //! Uses stdin and stdout. Returns a wallet2 and password for `wallet_file` if no errors.
     static std::pair<std::unique_ptr<wallet2>, password_container>
@@ -161,7 +54,16 @@ namespace tools
     //! Uses stdin and stdout. Returns a wallet2 and password for wallet with no file if no errors.
     static std::pair<std::unique_ptr<wallet2>, password_container> make_new(const boost::program_options::variables_map& vm, bool unattended, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
 
-    //! Uses stdin and stdout. Returns a wallet2_base if no errors.
-    static std::pair<std::unique_ptr<wallet2>, password_container> make_from_json(const boost::program_options::variables_map& vm, bool unattended, const std::string& json_file, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
+    //! Just parses variables.
+    static std::unique_ptr<wallet2> make_dummy(const boost::program_options::variables_map& vm, bool unattended, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
+
+    static bool has_testnet_option(const boost::program_options::variables_map& vm);
+    static bool has_stagenet_option(const boost::program_options::variables_map& vm);
+    static std::string device_name_option(const boost::program_options::variables_map& vm);
+    static std::string device_derivation_path_option(const boost::program_options::variables_map &vm);
+    static void init_options(boost::program_options::options_description& desc_params);
+
+    wallet2(cryptonote::network_type nettype = cryptonote::MAINNET, uint64_t kdf_rounds = 1, bool unattended = false) : wallet2_base(nettype, kdf_rounds, unattended) {}
+    ~wallet2();
   };
 }
