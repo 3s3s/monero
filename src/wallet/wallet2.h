@@ -44,24 +44,24 @@ namespace tools
 
   public:
 
-    //! Uses stdin and stdout. Returns a wallet2 if no errors.
-    static std::pair<std::unique_ptr<wallet2>, password_container> make_from_json(const boost::program_options::variables_map& vm, bool unattended, const std::string& json_file, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
+        static bool has_testnet_option(const boost::program_options::variables_map& vm);
+        static bool has_stagenet_option(const boost::program_options::variables_map& vm);
+        static std::string device_name_option(const boost::program_options::variables_map& vm);
+        static std::string device_derivation_path_option(const boost::program_options::variables_map &vm);
+        static void init_options(boost::program_options::options_description& desc_params);
 
-    //! Uses stdin and stdout. Returns a wallet2 and password for `wallet_file` if no errors.
-    static std::pair<std::unique_ptr<wallet2>, password_container>
-      make_from_file(const boost::program_options::variables_map& vm, bool unattended, const std::string& wallet_file, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
+        //! Uses stdin and stdout. Returns a wallet2 if no errors.
+        static std::pair<std::unique_ptr<wallet2>, password_container> make_from_json(const boost::program_options::variables_map& vm, bool unattended, const std::string& json_file, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
 
-    //! Uses stdin and stdout. Returns a wallet2 and password for wallet with no file if no errors.
-    static std::pair<std::unique_ptr<wallet2>, password_container> make_new(const boost::program_options::variables_map& vm, bool unattended, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
+        //! Uses stdin and stdout. Returns a wallet2 and password for `wallet_file` if no errors.
+        static std::pair<std::unique_ptr<wallet2>, password_container>
+          make_from_file(const boost::program_options::variables_map& vm, bool unattended, const std::string& wallet_file, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
 
-    //! Just parses variables.
-    static std::unique_ptr<wallet2> make_dummy(const boost::program_options::variables_map& vm, bool unattended, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
+        //! Uses stdin and stdout. Returns a wallet2 and password for wallet with no file if no errors.
+        static std::pair<std::unique_ptr<wallet2>, password_container> make_new(const boost::program_options::variables_map& vm, bool unattended, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
 
-    static bool has_testnet_option(const boost::program_options::variables_map& vm);
-    static bool has_stagenet_option(const boost::program_options::variables_map& vm);
-    static std::string device_name_option(const boost::program_options::variables_map& vm);
-    static std::string device_derivation_path_option(const boost::program_options::variables_map &vm);
-    static void init_options(boost::program_options::options_description& desc_params);
+        //! Just parses variables.
+        static std::unique_ptr<wallet2> make_dummy(const boost::program_options::variables_map& vm, bool unattended, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter);
 
     wallet2(cryptonote::network_type nettype = cryptonote::MAINNET, uint64_t kdf_rounds = 1, bool unattended = false) : wallet2_base(nettype, kdf_rounds, unattended) {}
     ~wallet2();

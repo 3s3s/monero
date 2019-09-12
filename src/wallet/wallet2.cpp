@@ -556,46 +556,6 @@ namespace
 
 namespace tools {
 
-  std::pair<std::unique_ptr<wallet2>, tools::password_container> wallet2::make_from_json(const boost::program_options::variables_map& vm, bool unattended, const std::string& json_file, const std::function<boost::optional<tools::password_container>(const char *, bool)> &password_prompter)
-  {
-    const options opts{};
-    return generate_from_json(json_file, vm, unattended, opts, password_prompter);
-  }
-
-  std::pair<std::unique_ptr<wallet2>, password_container> wallet2::make_from_file(
-    const boost::program_options::variables_map& vm, bool unattended, const std::string& wallet_file, const std::function<boost::optional<tools::password_container>(const char *, bool)> &password_prompter)
-  {
-    const options opts{};
-    auto pwd = get_password(vm, opts, password_prompter, false);
-    if (!pwd)
-    {
-      return {nullptr, password_container{}};
-    }
-    auto wallet = make_basic(vm, unattended, opts, password_prompter);
-    if (wallet && !wallet_file.empty())
-    {
-      wallet->load(wallet_file, pwd->password());
-    }
-    return {std::move(wallet), std::move(*pwd)};
-  }
-
-  std::pair<std::unique_ptr<wallet2>, password_container> wallet2::make_new(const boost::program_options::variables_map& vm, bool unattended, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter)
-  {
-    const options opts{};
-    auto pwd = get_password(vm, opts, password_prompter, true);
-    if (!pwd)
-    {
-      return {nullptr, password_container{}};
-    }
-    return {make_basic(vm, unattended, opts, password_prompter), std::move(*pwd)};
-  }
-
-  std::unique_ptr<wallet2> wallet2::make_dummy(const boost::program_options::variables_map& vm, bool unattended, const std::function<boost::optional<tools::password_container>(const char *, bool)> &password_prompter)
-  {
-    const options opts{};
-    return make_basic(vm, unattended, opts, password_prompter);
-  }
-
   bool wallet2::has_testnet_option(const boost::program_options::variables_map& vm)
   {
     return command_line::get_arg(vm, options().testnet);
@@ -645,6 +605,47 @@ namespace tools {
     command_line::add_arg(desc_params, opts.tx_notify);
     command_line::add_arg(desc_params, opts.no_dns);
     command_line::add_arg(desc_params, opts.offline);
+    command_line::add_arg(desc_params, opts.extra_entropy);
+  }
+
+  std::pair<std::unique_ptr<wallet2>, tools::password_container> wallet2::make_from_json(const boost::program_options::variables_map& vm, bool unattended, const std::string& json_file, const std::function<boost::optional<tools::password_container>(const char *, bool)> &password_prompter)
+  {
+    const options opts{};
+    return generate_from_json(json_file, vm, unattended, opts, password_prompter);
+  }
+
+  std::pair<std::unique_ptr<wallet2>, password_container> wallet2::make_from_file(
+    const boost::program_options::variables_map& vm, bool unattended, const std::string& wallet_file, const std::function<boost::optional<tools::password_container>(const char *, bool)> &password_prompter)
+  {
+    const options opts{};
+    auto pwd = get_password(vm, opts, password_prompter, false);
+    if (!pwd)
+    {
+      return {nullptr, password_container{}};
+    }
+    auto wallet = make_basic(vm, unattended, opts, password_prompter);
+    if (wallet && !wallet_file.empty())
+    {
+      wallet->load(wallet_file, pwd->password());
+    }
+    return {std::move(wallet), std::move(*pwd)};
+  }
+
+  std::pair<std::unique_ptr<wallet2>, password_container> wallet2::make_new(const boost::program_options::variables_map& vm, bool unattended, const std::function<boost::optional<password_container>(const char *, bool)> &password_prompter)
+  {
+    const options opts{};
+    auto pwd = get_password(vm, opts, password_prompter, true);
+    if (!pwd)
+    {
+      return {nullptr, password_container{}};
+    }
+    return {make_basic(vm, unattended, opts, password_prompter), std::move(*pwd)};
+  }
+
+  std::unique_ptr<wallet2> wallet2::make_dummy(const boost::program_options::variables_map& vm, bool unattended, const std::function<boost::optional<tools::password_container>(const char *, bool)> &password_prompter)
+  {
+    const options opts{};
+    return make_basic(vm, unattended, opts, password_prompter);
   }
 
   wallet2::~wallet2()
