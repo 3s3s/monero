@@ -140,6 +140,7 @@ namespace
     const command_line::arg_descriptor<std::string> tx_notify = { "tx-notify" , "Run a program for each new incoming transaction, '%s' will be replaced by the transaction hash" , "" };
     const command_line::arg_descriptor<bool> no_dns = {"no-dns", tools::wallet2::tr("Do not use DNS"), false};
     const command_line::arg_descriptor<bool> offline = {"offline", tools::wallet2::tr("Do not connect to a daemon, nor use DNS"), false};
+    const command_line::arg_descriptor<std::string> extra_entropy = {"extra-entropy", tools::wallet2::tr("File containing extra entropy to initialize the PRNG (any data, aim for 256 bits of entropy to be useful, wihch typically means more than 256 bits of data)")};
   };
 
   std::unique_ptr<tools::wallet2> make_basic(const boost::program_options::variables_map& vm, bool unattended, const options& opts, const std::function<boost::optional<tools::password_container>(const char *, bool)> &password_prompter)
@@ -302,6 +303,15 @@ namespace
 
     if (command_line::get_arg(vm, opts.offline))
       wallet->set_offline();
+
+    const std::string extra_entropy = command_line::get_arg(vm, opts.extra_entropy);
+    if (!extra_entropy.empty())
+    {
+      std::string data;
+      THROW_WALLET_EXCEPTION_IF(!epee::file_io_utils::load_file_to_string(extra_entropy, data),
+          tools::error::wallet_internal_error, "Failed to load extra entropy from " + extra_entropy);
+      add_extra_entropy_thread_safe(data.data(), data.size());
+    }
 
     try
     {
