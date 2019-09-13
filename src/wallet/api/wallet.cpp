@@ -993,12 +993,12 @@ void WalletImpl::setSubaddressLookahead(uint32_t major, uint32_t minor)
 
 uint64_t WalletImpl::balance(uint32_t accountIndex) const
 {
-    return m_wallet->balance(accountIndex, false);  // TODO: no false param on master
+    return m_wallet->balance(accountIndex, false);  // TODO: woodser added false since wallet2 requires 2 params
 }
 
 uint64_t WalletImpl::unlockedBalance(uint32_t accountIndex) const
 {
-    return m_wallet->unlocked_balance(accountIndex, false); // TODO: no false param on master
+    return m_wallet->unlocked_balance(accountIndex, false); // TODO: woodser added false since wallet2 requires 2 params
 }
 
 uint64_t WalletImpl::blockChainHeight() const
