@@ -145,15 +145,6 @@ static const std::string ASCII_OUTPUT_MAGIC = "MoneroAsciiDataV1";
 
 namespace
 {
-  std::string get_default_ringdb_path()
-  {
-    boost::filesystem::path dir = tools::get_default_data_dir();
-    // remove .bitmonero, replace with .shared-ringdb
-    dir = dir.remove_filename();
-    dir /= ".shared-ringdb";
-    return dir.string();
-  }
-
   std::string pack_multisignature_keys(const std::string& prefix, const std::vector<crypto::public_key>& keys, const crypto::secret_key& signer_secret_key)
   {
     std::string data;
