@@ -31,6 +31,7 @@
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 set(wallet_sources
+  wallet2_base.cpp
   wallet2.cpp
   wallet_args.cpp
   ringdb.cpp
@@ -40,6 +41,7 @@ set(wallet_sources
 )
 
 set(wallet_private_headers
+  wallet2_base.h
   wallet2.h
   wallet_args.h
   wallet_errors.h
