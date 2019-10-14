@@ -572,6 +572,12 @@ std::pair<std::unique_ptr<tools::wallet2>, tools::password_container> generate_f
 namespace tools
 {
 
+wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended):
+  m_node_rpc_proxy(m_http_client, m_daemon_rpc_mutex),
+  m_message_store()
+{
+}
+
 wallet2::~wallet2()
 {
 }
