@@ -39,7 +39,6 @@
 #include <boost/asio/ip/address.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/preprocessor/stringize.hpp>
-#include <openssl/evp.h>
 #include "include_base_utils.h"
 using namespace epee;
 

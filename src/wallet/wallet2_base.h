@@ -1234,17 +1234,17 @@ private:
     template<class t_request, class t_response>
     inline bool invoke_http_json(const boost::string_ref uri, const t_request& req, t_response& res, std::chrono::milliseconds timeout = std::chrono::seconds(15), const boost::string_ref http_method = "GET")
     {
-      throw runtime_error("wallet2_base::invoke_http_json not implemented");
+      throw std::string("wallet2_base::invoke_http_json not implemented");
     }
     template<class t_request, class t_response>
     inline bool invoke_http_bin(const boost::string_ref uri, const t_request& req, t_response& res, std::chrono::milliseconds timeout = std::chrono::seconds(15), const boost::string_ref http_method = "GET")
     {
-      throw runtime_error("wallet2_base::invoke_http_bin not implemented");
+      throw std::string("wallet2_base::invoke_http_bin not implemented");
     }
     template<class t_request, class t_response>
     inline bool invoke_http_json_rpc(const boost::string_ref uri, const std::string& method_name, const t_request& req, t_response& res, std::chrono::milliseconds timeout = std::chrono::seconds(15), const boost::string_ref http_method = "GET", const std::string& req_id = "0")
     {
-      throw runtime_error("wallet2_base::invoke_http_json_rpc not implemented");
+      throw std::string("wallet2_base::invoke_http_json_rpc not implemented");
     }
 
     bool set_ring_database(const std::string &filename);
