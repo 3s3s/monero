@@ -31,6 +31,13 @@
 #pragma once
 
 #include "wallet2_base.h"
+#include "net/http_client.h"
+#include "net/http_auth.h"
+#include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
+#include "storages/http_abstract_invoke.h"
+#include "message_store.h"
+#include "node_rpc_proxy.h"
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
 #define MONERO_DEFAULT_LOG_CATEGORY "wallet.wallet2"
@@ -42,6 +49,45 @@ namespace tools
   class wallet2 : public wallet2_base
   {
   public:
+
+    bool init(std::string daemon_address = "http://localhost:8080",
+      boost::optional<epee::net_utils::http::login> daemon_login = boost::none,
+      boost::asio::ip::tcp::endpoint proxy = {},
+      uint64_t upper_transaction_weight_limit = 0,
+      bool trusted_daemon = true,
+      epee::net_utils::ssl_options_t ssl_options = epee::net_utils::ssl_support_t::e_ssl_support_autodetect);
+    bool set_daemon(std::string daemon_address = "http://localhost:8080",
+      boost::optional<epee::net_utils::http::login> daemon_login = boost::none, bool trusted_daemon = true,
+      epee::net_utils::ssl_options_t ssl_options = epee::net_utils::ssl_support_t::e_ssl_support_autodetect);
+    const boost::optional<epee::net_utils::http::login>& get_daemon_login() const { return m_daemon_login; }
+    void stop() { wallet2_base::stop(); m_message_store.stop(); }
+
+    // MMS -------------------------------------------------------------------------------------------------
+    mms::message_store& get_message_store() { return m_message_store; };
+    const mms::message_store& get_message_store() const { return m_message_store; };
+    mms::multisig_wallet_state get_multisig_wallet_state() const;
+
+    template<class t_request, class t_response>
+    inline bool invoke_http_json(const boost::string_ref uri, const t_request& req, t_response& res, std::chrono::milliseconds timeout = std::chrono::seconds(15), const boost::string_ref http_method = "GET")
+    {
+      if (m_offline) return false;
+      boost::lock_guard<boost::recursive_mutex> lock(m_daemon_rpc_mutex);
+      return epee::net_utils::invoke_http_json(uri, req, res, m_http_client, timeout, http_method);
+    }
+    template<class t_request, class t_response>
+    inline bool invoke_http_bin(const boost::string_ref uri, const t_request& req, t_response& res, std::chrono::milliseconds timeout = std::chrono::seconds(15), const boost::string_ref http_method = "GET")
+    {
+      if (m_offline) return false;
+      boost::lock_guard<boost::recursive_mutex> lock(m_daemon_rpc_mutex);
+      return epee::net_utils::invoke_http_bin(uri, req, res, m_http_client, timeout, http_method);
+    }
+    template<class t_request, class t_response>
+    inline bool invoke_http_json_rpc(const boost::string_ref uri, const std::string& method_name, const t_request& req, t_response& res, std::chrono::milliseconds timeout = std::chrono::seconds(15), const boost::string_ref http_method = "GET", const std::string& req_id = "0")
+    {
+      if (m_offline) return false;
+      boost::lock_guard<boost::recursive_mutex> lock(m_daemon_rpc_mutex);
+      return epee::net_utils::invoke_http_json_rpc(uri, method_name, req, res, m_http_client, timeout, http_method, req_id);
+    }
 
     static bool has_testnet_option(const boost::program_options::variables_map& vm);
     static bool has_stagenet_option(const boost::program_options::variables_map& vm);
@@ -64,5 +110,11 @@ namespace tools
 
     wallet2(cryptonote::network_type nettype = cryptonote::MAINNET, uint64_t kdf_rounds = 1, bool unattended = false) : wallet2_base(nettype, kdf_rounds, unattended) {}
     ~wallet2();
+
+  private:
+    epee::net_utils::http::http_simple_client m_http_client;
+    boost::optional<epee::net_utils::http::login> m_daemon_login;
+    NodeRPCProxy m_node_rpc_proxy;
+    mms::message_store m_message_store;
   };
 }

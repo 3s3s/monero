@@ -697,31 +697,6 @@ wallet2_base::wallet2_base(network_type nettype, uint64_t kdf_rounds, bool unatt
 wallet2_base::~wallet2_base()
 {
 }
-
-//----------------------------------------------------------------------------------------------------
-bool wallet2_base::set_daemon(std::string daemon_address, boost::optional<epee::net_utils::http::login> daemon_login, bool trusted_daemon, epee::net_utils::ssl_options_t ssl_options)
-{
-  boost::lock_guard<boost::recursive_mutex> lock(m_daemon_rpc_mutex);
-
-  if(m_http_client.is_connected())
-    m_http_client.disconnect();
-  m_daemon_address = std::move(daemon_address);
-  m_daemon_login = std::move(daemon_login);
-  m_trusted_daemon = trusted_daemon;
-
-  MINFO("setting daemon to " << get_daemon_address());
-  return m_http_client.set_server(get_daemon_address(), get_daemon_login(), std::move(ssl_options));
-}
-//----------------------------------------------------------------------------------------------------
-bool wallet2_base::init(std::string daemon_address, boost::optional<epee::net_utils::http::login> daemon_login, boost::asio::ip::tcp::endpoint proxy, uint64_t upper_transaction_weight_limit, bool trusted_daemon, epee::net_utils::ssl_options_t ssl_options)
-{
-  m_checkpoints.init_default_checkpoints(m_nettype);
-  m_is_initialized = true;
-  m_upper_transaction_weight_limit = upper_transaction_weight_limit;
-  if (proxy != boost::asio::ip::tcp::endpoint{})
-    m_http_client.set_connector(net::socks::connector{std::move(proxy)});
-  return set_daemon(daemon_address, daemon_login, trusted_daemon, std::move(ssl_options));
-}
 //----------------------------------------------------------------------------------------------------
 bool wallet2_base::is_deterministic() const
 {
@@ -12539,29 +12514,6 @@ uint64_t wallet2_base::get_segregation_fork_height() const
 //----------------------------------------------------------------------------------------------------
 void wallet2_base::generate_genesis(cryptonote::block& b) const {
   cryptonote::generate_genesis_block(b, get_config(m_nettype).GENESIS_TX, get_config(m_nettype).GENESIS_NONCE);
-}
-//----------------------------------------------------------------------------------------------------
-mms::multisig_wallet_state wallet2_base::get_multisig_wallet_state() const
-{
-  mms::multisig_wallet_state state;
-  state.nettype = m_nettype;
-  state.multisig = multisig(&state.multisig_is_ready);
-  state.has_multisig_partial_key_images = has_multisig_partial_key_images();
-  state.multisig_rounds_passed = m_multisig_rounds_passed;
-  state.num_transfer_details = m_transfers.size();
-  if (state.multisig)
-  {
-    THROW_WALLET_EXCEPTION_IF(!m_original_keys_available, error::wallet_internal_error, "MMS use not possible because own original Monero address not available");
-    state.address = m_original_address;
-    state.view_secret_key = m_original_view_secret_key;
-  }
-  else
-  {
-    state.address = m_account.get_keys().m_account_address;
-    state.view_secret_key = m_account.get_keys().m_view_secret_key;
-  }
-  state.mms_file=m_mms_file;
-  return state;
 }
 //----------------------------------------------------------------------------------------------------
 wallet_device_callback * wallet2_base::get_device_callback()
