@@ -40,6 +40,7 @@
 #include <boost/range/adaptor/transformed.hpp>
 #include <boost/preprocessor/stringize.hpp>
 #include "include_base_utils.h"
+#include "syncobj.h"
 using namespace epee;
 
 #include "cryptonote_config.h"
@@ -76,6 +77,7 @@ using namespace epee;
 #include "device/device_cold.hpp"
 #include "device_trezor/device_trezor.hpp"
 #include "net/socks_connect.h"
+
 
 extern "C"
 {
