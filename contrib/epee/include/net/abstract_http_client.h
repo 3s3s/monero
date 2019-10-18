@@ -1,0 +1,38 @@
+#include "http_base.h"
+#include "http_auth.h"
+
+/**
+ * Abstract HTTP client interface.
+ */
+class abstract_http_client
+{
+public:
+  void set_server(std::string host, std::string port, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect);
+  bool set_server(const std::string& address, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect)
+  {
+    http::url_content parsed{};
+    const bool r = parse_url(address, parsed);
+    CHECK_AND_ASSERT_MES(r, false, "failed to parse url: " << address);
+    set_server(std::move(parsed.host), std::to_string(parsed.port), std::move(user), std::move(ssl_options));
+    return true;
+  }
+  void set_auto_connect(bool auto_connect);
+  void set_connector(F connector);
+  bool connect(std::chrono::milliseconds timeout);
+  bool disconnect();
+  bool is_connected(bool *ssl = NULL);
+  bool invoke(const boost::string_ref uri, const boost::string_ref method, const std::string& body, std::chrono::milliseconds timeout, const http_response_info** ppresponse_info = NULL, const fields_list& additional_params = fields_list());
+  inline bool invoke_get(const boost::string_ref uri, std::chrono::milliseconds timeout, const std::string& body = std::string(), const http_response_info** ppresponse_info = NULL, const fields_list& additional_params = fields_list())
+  {
+      CRITICAL_REGION_LOCAL(m_lock);
+      return invoke(uri, "GET", body, timeout, ppresponse_info, additional_params);
+  }
+  inline bool invoke_post(const boost::string_ref uri, const std::string& body, std::chrono::milliseconds timeout, const http_response_info** ppresponse_info = NULL, const fields_list& additional_params = fields_list())
+  {
+    CRITICAL_REGION_LOCAL(m_lock);
+    return invoke(uri, "POST", body, timeout, ppresponse_info, additional_params);
+  }
+  uint64_t get_bytes_sent() const;
+  uint64_t get_bytes_received() const;
+};
+
