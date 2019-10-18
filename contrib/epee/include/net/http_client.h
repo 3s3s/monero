@@ -47,7 +47,8 @@
 
 #include "string_tools.h"
 #include "reg_exp_definer.h"
-#include "http_base.h" 
+#include "abstract_http_client.h"
+#include "http_base.h"
 #include "http_auth.h"
 #include "to_nonconst_iterator.h"
 #include "net_parse_helpers.h"
