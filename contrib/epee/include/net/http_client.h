@@ -40,6 +40,7 @@
 
 #include "net_helper.h"
 #include "http_client_base.h"
+#include "abstract_http_client.h"
 
 #ifdef HTTP_ENABLE_GZIP
 #include "gzip_encoding.h"
@@ -239,7 +240,7 @@ namespace net_utils
 	{
 
 		template<typename net_client_type>
-		class http_simple_client_template: public i_target_handler
+		class http_simple_client_template: public i_target_handler, public abstract_http_client
 		{
 		private:
 			enum reciev_machine_state
