@@ -301,7 +301,10 @@ namespace net_utils
 			const std::string &get_host() const { return m_host_buff; };
 			const std::string &get_port() const { return m_port; };
 
-			bool set_server(const std::string& address, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect)
+      bool set_server(const std::string& address, boost::optional<login> user) {
+        return set_server(address, user, ssl_support_t::e_ssl_support_autodetect);
+      }
+			bool set_server(const std::string& address, boost::optional<login> user, ssl_options_t ssl_options)
 			{
 				http::url_content parsed{};
 				const bool r = parse_url(address, parsed);
@@ -310,7 +313,11 @@ namespace net_utils
 				return true;
 			}
 
-			void set_server(std::string host, std::string port, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect)
+      void set_server(std::string host, std::string port, boost::optional<login> user)
+      {
+        set_server(host, port, user, ssl_support_t::e_ssl_support_autodetect);
+      }
+			void set_server(std::string host, std::string port, boost::optional<login> user, ssl_options_t ssl_options)
 			{
 				CRITICAL_REGION_LOCAL(m_lock);
 				disconnect();
