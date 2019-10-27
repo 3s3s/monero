@@ -698,8 +698,9 @@ wallet2_base::~wallet2_base()
 {
 }
 
+// TODO woodser: proxy and ssl_options should be set directly through http client (moved from wallet2_base to wallet2)
 //----------------------------------------------------------------------------------------------------
-bool wallet2_base::set_daemon(std::string daemon_address, boost::optional<epee::net_utils::http::login> daemon_login, bool trusted_daemon, epee::net_utils::ssl_options_t ssl_options)
+bool wallet2_base::set_daemon(std::string daemon_address, boost::optional<epee::net_utils::http::login> daemon_login, bool trusted_daemon)
 {
   boost::lock_guard<boost::recursive_mutex> lock(m_daemon_rpc_mutex);
 
@@ -714,14 +715,12 @@ bool wallet2_base::set_daemon(std::string daemon_address, boost::optional<epee::
   return m_http_client.set_server(get_daemon_address(), get_daemon_login());
 }
 //----------------------------------------------------------------------------------------------------
-bool wallet2_base::init(std::string daemon_address, boost::optional<epee::net_utils::http::login> daemon_login, boost::asio::ip::tcp::endpoint proxy, uint64_t upper_transaction_weight_limit, bool trusted_daemon, epee::net_utils::ssl_options_t ssl_options)
+bool wallet2_base::init(std::string daemon_address, boost::optional<epee::net_utils::http::login> daemon_login, uint64_t upper_transaction_weight_limit, bool trusted_daemon)
 {
   m_checkpoints.init_default_checkpoints(m_nettype);
   m_is_initialized = true;
   m_upper_transaction_weight_limit = upper_transaction_weight_limit;
-  if (proxy != boost::asio::ip::tcp::endpoint{})
-    m_http_client.set_connector(net::socks::connector{std::move(proxy)});
-  return set_daemon(daemon_address, daemon_login, trusted_daemon, std::move(ssl_options));
+  return set_daemon(daemon_address, daemon_login, trusted_daemon);
 }
 //----------------------------------------------------------------------------------------------------
 bool wallet2_base::is_deterministic() const
@@ -1735,11 +1734,12 @@ void wallet2_base::process_new_transaction(const crypto::hash &txid, const crypt
       total_received_2 += i.second;
     if (total_received_1 != total_received_2)
     {
-      const el::Level level = el::Level::Warning;
-      MCLOG_RED(level, "global", "**********************************************************************");
-      MCLOG_RED(level, "global", "Consistency failure in amounts received");
-      MCLOG_RED(level, "global", "Check transaction " << txid);
-      MCLOG_RED(level, "global", "**********************************************************************");
+        MWARNING("Consistency failure in amounts received.  Check transaction " << txid);
+//      const el::Level level = el::Level::Warning;
+//      MCLOG_RED(level, "global", "**********************************************************************");
+//      MCLOG_RED(level, "global", "Consistency failure in amounts received");
+//      MCLOG_RED(level, "global", "Check transaction " << txid);
+//      MCLOG_RED(level, "global", "**********************************************************************");
       exit(1);
       return;
     }
@@ -7426,15 +7426,16 @@ void wallet2_base::get_outs(std::vector<std::vector<tools::wallet2_base::get_out
           [](const get_outputs_out &a, const get_outputs_out &b) { return a.index < b.index; });
     }
 
-    if (ELPP->vRegistry()->allowed(el::Level::Debug, MONERO_DEFAULT_LOG_CATEGORY))
-    {
-      std::map<uint64_t, std::set<uint64_t>> outs;
-      for (const auto &i: req.outputs)
-        outs[i.amount].insert(i.index);
-      for (const auto &o: outs)
-        MDEBUG("asking for outputs with amount " << print_money(o.first) << ": " <<
-            boost::join(o.second | boost::adaptors::transformed([](uint64_t out){return std::to_string(out);}), " "));
-    }
+    // TODO woodser: el::Level::Debug
+//    if (ELPP->vRegistry()->allowed(el::Level::Debug, MONERO_DEFAULT_LOG_CATEGORY))
+//    {
+//      std::map<uint64_t, std::set<uint64_t>> outs;
+//      for (const auto &i: req.outputs)
+//        outs[i.amount].insert(i.index);
+//      for (const auto &o: outs)
+//        MDEBUG("asking for outputs with amount " << print_money(o.first) << ": " <<
+//            boost::join(o.second | boost::adaptors::transformed([](uint64_t out){return std::to_string(out);}), " "));
+//    }
 
     // get the keys for those
     req.get_txid = false;
@@ -11336,7 +11337,7 @@ uint64_t wallet2_base::import_key_images(const std::vector<std::pair<crypto::key
 
   if(check_spent)
   {
-    PERF_TIMER(import_key_images_RPC);
+    //PERF_TIMER(import_key_images_RPC);
     m_daemon_rpc_mutex.lock();
     bool r = invoke_http_json("/is_key_image_spent", req, daemon_resp, rpc_timeout);
     m_daemon_rpc_mutex.unlock();
@@ -11430,7 +11431,7 @@ uint64_t wallet2_base::import_key_images(const std::vector<std::pair<crypto::key
     THROW_WALLET_EXCEPTION_IF(gettxs_res.status == CORE_RPC_STATUS_BUSY, error::daemon_busy, "gettransactions");
     THROW_WALLET_EXCEPTION_IF(gettxs_res.txs.size() != spent_txids.size(), error::wallet_internal_error,
       "daemon returned wrong response for gettransactions, wrong count = " + std::to_string(gettxs_res.txs.size()) + ", expected " + std::to_string(spent_txids.size()));
-    PERF_TIMER_STOP(import_key_images_E);
+    //PERF_TIMER_STOP(import_key_images_E);
 
     // process each outgoing tx
     //PERF_TIMER_START(import_key_images_F);
@@ -12626,87 +12627,15 @@ void wallet2_base::throw_on_rpc_response_error(const boost::optional<std::string
   THROW_WALLET_EXCEPTION_IF(*status != CORE_RPC_STATUS_OK, tools::error::wallet_generic_rpc_error, method, m_trusted_daemon ? *status : "daemon error");
 }
 //----------------------------------------------------------------------------------------------------
-
 bool wallet2_base::save_to_file(const std::string& path_to_file, const std::string& raw, bool is_printable) const
 {
-  if (is_printable || m_export_format == ExportFormat::Binary)
-  {
-    return epee::file_io_utils::save_string_to_file(path_to_file, raw);
-  }
-
-  FILE *fp = fopen(path_to_file.c_str(), "w+");
-  if (!fp)
-  {
-    MERROR("Failed to open wallet file for writing: " << path_to_file << ": " << strerror(errno));
-    return false;
-  }
-
-  // Save the result b/c we need to close the fp before returning success/failure.
-  int write_result = PEM_write(fp, ASCII_OUTPUT_MAGIC.c_str(), "", (const unsigned char *) raw.c_str(), raw.length());
-  fclose(fp);
-
-  if (write_result == 0)
-  {
-    return false;
-  }
-  else
-  {
-    return true;
-  }
+  throw runtime_error("wallet2_base::save_to_file() must be implemented by subclass");
 }
 //----------------------------------------------------------------------------------------------------
-
 bool wallet2_base::load_from_file(const std::string& path_to_file, std::string& target_str,
                              size_t max_size)
 {
-  std::string data;
-  bool r = epee::file_io_utils::load_file_to_string(path_to_file, data, max_size);
-  if (!r)
-  {
-    return false;
-  }
-
-  if (!boost::algorithm::contains(boost::make_iterator_range(data.begin(), data.end()), ASCII_OUTPUT_MAGIC))
-  {
-    // It's NOT our ascii dump.
-    target_str = std::move(data);
-    return true;
-  }
-
-  // Creating a BIO and calling PEM_read_bio instead of simpler PEM_read
-  // to avoid reading the file from disk twice.
-  BIO* b = BIO_new_mem_buf((const void*) data.data(), data.length());
-
-  char *name = NULL;
-  char *header = NULL;
-  unsigned char *openssl_data = NULL;
-  long len = 0;
-
-  // Save the result b/c we need to free the data before returning success/failure.
-  int success = PEM_read_bio(b, &name, &header, &openssl_data, &len);
-
-  try
-  {
-    target_str = std::string((const char*) openssl_data, len);
-  }
-  catch (...)
-  {
-    success = 0;
-  }
-
-  OPENSSL_free((void *) name);
-  OPENSSL_free((void *) header);
-  OPENSSL_free((void *) openssl_data);
-  BIO_free(b);
-
-  if (success == 0)
-  {
-    return false;
-  }
-  else
-  {
-    return true;
-  }
+  throw runtime_error("wallet2_base::load_from_file() must be implemented by subclass");
 }
 //----------------------------------------------------------------------------------------------------
 void wallet2_base::hash_m_transfer(const transfer_details & transfer, crypto::hash &hash) const
