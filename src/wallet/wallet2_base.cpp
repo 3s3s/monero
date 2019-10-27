@@ -625,7 +625,8 @@ void wallet_device_callback::on_progress(const hw::device_progress& event)
     wallet->on_device_progress(event);
 }
 
-wallet2_base::wallet2_base(network_type nettype, uint64_t kdf_rounds, bool unattended):
+wallet2_base::wallet2_base(epee::net_utils::http::abstract_http_client &http_client, network_type nettype, uint64_t kdf_rounds, bool unattended):
+  m_http_client(http_client),
   m_multisig_rescan_info(NULL),
   m_multisig_rescan_k(NULL),
   m_upper_transaction_weight_limit(0),
@@ -678,7 +679,7 @@ wallet2_base::wallet2_base(network_type nettype, uint64_t kdf_rounds, bool unatt
   m_light_wallet_balance(0),
   m_light_wallet_unlocked_balance(0),
   m_original_keys_available(false),
-  m_message_store(),
+  m_message_store(m_http_client),
   m_key_device_type(hw::device::device_type::SOFTWARE),
   m_ring_history_saved(false),
   m_ringdb(),
@@ -710,7 +711,8 @@ bool wallet2_base::set_daemon(std::string daemon_address, boost::optional<epee::
   m_trusted_daemon = trusted_daemon;
 
   MINFO("setting daemon to " << get_daemon_address());
-  return m_http_client.set_server(get_daemon_address(), get_daemon_login(), std::move(ssl_options));
+  //return m_http_client.set_server(get_daemon_address(), get_daemon_login(), std::move(ssl_options));  // TODO woodser: SSL OPTIONS
+  return m_http_client.set_server(get_daemon_address(), get_daemon_login());
 }
 //----------------------------------------------------------------------------------------------------
 bool wallet2_base::init(std::string daemon_address, boost::optional<epee::net_utils::http::login> daemon_login, boost::asio::ip::tcp::endpoint proxy, uint64_t upper_transaction_weight_limit, bool trusted_daemon, epee::net_utils::ssl_options_t ssl_options)

@@ -28,18 +28,18 @@ namespace epee
           set_server(std::move(parsed.host), std::to_string(parsed.port), std::move(user));
           return true;
         }
-        void set_server(std::string host, std::string port, boost::optional<login> user);
-        void set_auto_connect(bool auto_connect);
+        virtual void set_server(std::string host, std::string port, boost::optional<login> user) = 0;
+        virtual void set_auto_connect(bool auto_connect) = 0;
         template<typename F>
-        void set_connector(F connector);
-        bool connect(std::chrono::milliseconds timeout);
-        bool disconnect();
-        bool is_connected(bool *ssl = NULL);
+        void set_connector(F connector) {}  // TODO woodser: set_connector cannot be virtual because of template, remove from abstract?
+        virtual bool connect(std::chrono::milliseconds timeout) = 0;
+        virtual bool disconnect() = 0;
+        virtual bool is_connected(bool *ssl = NULL) = 0;
         virtual bool invoke(const boost::string_ref uri, const boost::string_ref method, const std::string& body, std::chrono::milliseconds timeout, const http_response_info** ppresponse_info = NULL, const fields_list& additional_params = fields_list()) = 0;
         virtual bool invoke_get(const boost::string_ref uri, std::chrono::milliseconds timeout, const std::string& body = std::string(), const http_response_info** ppresponse_info = NULL, const fields_list& additional_params = fields_list()) = 0;
         virtual bool invoke_post(const boost::string_ref uri, const std::string& body, std::chrono::milliseconds timeout, const http_response_info** ppresponse_info = NULL, const fields_list& additional_params = fields_list()) = 0;
-        uint64_t get_bytes_sent() const;
-        uint64_t get_bytes_received() const;
+        virtual uint64_t get_bytes_sent() const = 0;
+        virtual uint64_t get_bytes_received() const = 0;
       };
     }
   }
