@@ -54,7 +54,7 @@
   #include <fstream>
 #endif
 
-#include "unbound.h"
+//#include "unbound.h"
 
 #include "include_base_utils.h"
 #include "file_io_utils.h"
@@ -67,7 +67,7 @@ using namespace epee;
 #include "stack_trace.h"
 #include "memwipe.h"
 #include "cryptonote_config.h"
-#include "net/http_client.h"                        // epee::net_utils::...
+#include "net/abstract_http_client.h"                        // epee::net_utils::...
 #include "readline_buffer.h"
 
 #ifdef WIN32
@@ -86,7 +86,7 @@ using namespace epee;
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
 #include <boost/format.hpp>
-#include <openssl/sha.h>
+//#include <openssl/sha.h>
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
 #define MONERO_DEFAULT_LOG_CATEGORY "util"
@@ -673,20 +673,20 @@ std::string get_nix_version_display_string()
     return std::error_code(code, std::system_category());
   }
 
-  static bool unbound_built_with_threads()
-  {
-    ub_ctx *ctx = ub_ctx_create();
-    if (!ctx) return false; // cheat a bit, should not happen unless OOM
-    char *monero = strdup("monero"), *unbound = strdup("unbound");
-    ub_ctx_zone_add(ctx, monero, unbound); // this calls ub_ctx_finalize first, then errors out with UB_SYNTAX
-    free(unbound);
-    free(monero);
-    // if no threads, bails out early with UB_NOERROR, otherwise fails with UB_AFTERFINAL id already finalized
-    bool with_threads = ub_ctx_async(ctx, 1) != 0; // UB_AFTERFINAL is not defined in public headers, check any error
-    ub_ctx_delete(ctx);
-    MINFO("libunbound was built " << (with_threads ? "with" : "without") << " threads");
-    return with_threads;
-  }
+//  static bool unbound_built_with_threads()
+//  {
+//    ub_ctx *ctx = ub_ctx_create();
+//    if (!ctx) return false; // cheat a bit, should not happen unless OOM
+//    char *monero = strdup("monero"), *unbound = strdup("unbound");
+//    ub_ctx_zone_add(ctx, monero, unbound); // this calls ub_ctx_finalize first, then errors out with UB_SYNTAX
+//    free(unbound);
+//    free(monero);
+//    // if no threads, bails out early with UB_NOERROR, otherwise fails with UB_AFTERFINAL id already finalized
+//    bool with_threads = ub_ctx_async(ctx, 1) != 0; // UB_AFTERFINAL is not defined in public headers, check any error
+//    ub_ctx_delete(ctx);
+//    MINFO("libunbound was built " << (with_threads ? "with" : "without") << " threads");
+//    return with_threads;
+//  }
 
   bool sanitize_locale()
   {
@@ -778,7 +778,7 @@ std::string get_nix_version_display_string()
 
   bool on_startup()
   {
-    mlog_configure("", true);
+//    mlog_configure("", true);
 
     setup_crash_dump();
 
@@ -790,14 +790,14 @@ std::string get_nix_version_display_string()
       MCLOG_RED(el::Level::Warning, "global", "Running with glibc " << ver << ", hangs may occur - change glibc version if possible");
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(LIBRESSL_VERSION_TEXT)
-    SSL_library_init();
-#else
-    OPENSSL_init_ssl(0, NULL);
-#endif
+//#if OPENSSL_VERSION_NUMBER < 0x10100000 || defined(LIBRESSL_VERSION_TEXT)
+//    SSL_library_init();
+//#else
+//    OPENSSL_init_ssl(0, NULL);
+//#endif
 
-    if (!unbound_built_with_threads())
-      MCLOG_RED(el::Level::Warning, "global", "libunbound was not built with threads enabled - crashes may occur");
+//    if (!unbound_built_with_threads())
+//      MCLOG_RED(el::Level::Warning, "global", "libunbound was not built with threads enabled - crashes may occur");
 
     return true;
   }
@@ -931,49 +931,49 @@ std::string get_nix_version_display_string()
     return 0;
   }
 
-  bool sha256sum(const uint8_t *data, size_t len, crypto::hash &hash)
-  {
-    SHA256_CTX ctx;
-    if (!SHA256_Init(&ctx))
-      return false;
-    if (!SHA256_Update(&ctx, data, len))
-      return false;
-    if (!SHA256_Final((unsigned char*)hash.data, &ctx))
-      return false;
-    return true;
-  }
+//  bool sha256sum(const uint8_t *data, size_t len, crypto::hash &hash)
+//  {
+//    SHA256_CTX ctx;
+//    if (!SHA256_Init(&ctx))
+//      return false;
+//    if (!SHA256_Update(&ctx, data, len))
+//      return false;
+//    if (!SHA256_Final((unsigned char*)hash.data, &ctx))
+//      return false;
+//    return true;
+//  }
 
-  bool sha256sum(const std::string &filename, crypto::hash &hash)
-  {
-    if (!epee::file_io_utils::is_file_exist(filename))
-      return false;
-    std::ifstream f;
-    f.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    f.open(filename, std::ios_base::binary | std::ios_base::in | std::ios::ate);
-    if (!f)
-      return false;
-    std::ifstream::pos_type file_size = f.tellg();
-    SHA256_CTX ctx;
-    if (!SHA256_Init(&ctx))
-      return false;
-    size_t size_left = file_size;
-    f.seekg(0, std::ios::beg);
-    while (size_left)
-    {
-      char buf[4096];
-      std::ifstream::pos_type read_size = size_left > sizeof(buf) ? sizeof(buf) : size_left;
-      f.read(buf, read_size);
-      if (!f || !f.good())
-        return false;
-      if (!SHA256_Update(&ctx, buf, read_size))
-        return false;
-      size_left -= read_size;
-    }
-    f.close();
-    if (!SHA256_Final((unsigned char*)hash.data, &ctx))
-      return false;
-    return true;
-  }
+//  bool sha256sum(const std::string &filename, crypto::hash &hash)
+//  {
+//    if (!epee::file_io_utils::is_file_exist(filename))
+//      return false;
+//    std::ifstream f;
+//    f.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+//    f.open(filename, std::ios_base::binary | std::ios_base::in | std::ios::ate);
+//    if (!f)
+//      return false;
+//    std::ifstream::pos_type file_size = f.tellg();
+//    SHA256_CTX ctx;
+//    if (!SHA256_Init(&ctx))
+//      return false;
+//    size_t size_left = file_size;
+//    f.seekg(0, std::ios::beg);
+//    while (size_left)
+//    {
+//      char buf[4096];
+//      std::ifstream::pos_type read_size = size_left > sizeof(buf) ? sizeof(buf) : size_left;
+//      f.read(buf, read_size);
+//      if (!f || !f.good())
+//        return false;
+//      if (!SHA256_Update(&ctx, buf, read_size))
+//        return false;
+//      size_left -= read_size;
+//    }
+//    f.close();
+//    if (!SHA256_Final((unsigned char*)hash.data, &ctx))
+//      return false;
+//    return true;
+//  }
 
   boost::optional<std::pair<uint32_t, uint32_t>> parse_subaddress_lookahead(const std::string& str)
   {
