@@ -146,6 +146,7 @@ namespace epee
       class abstract_http_client
       {
       public:
+        virtual ~abstract_http_client() {}
         bool set_server(const std::string& address, boost::optional<login> user)
         {
           http::url_content parsed{};
