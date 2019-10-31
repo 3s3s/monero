@@ -12540,8 +12540,7 @@ uint64_t wallet2_base::get_segregation_fork_height() const
 }
 //----------------------------------------------------------------------------------------------------
 void wallet2_base::generate_genesis(cryptonote::block& b) const {
-  throw runtime_error("wallet2_base generate_genesis disabled");  // TODO woodser: move to wallet2?
-  //cryptonote::generate_genesis_block(b, get_config(m_nettype).GENESIS_TX, get_config(m_nettype).GENESIS_NONCE);
+  cryptonote::generate_genesis_block(b, get_config(m_nettype).GENESIS_TX, get_config(m_nettype).GENESIS_NONCE);
 }
 //----------------------------------------------------------------------------------------------------
 mms::multisig_wallet_state wallet2_base::get_multisig_wallet_state() const

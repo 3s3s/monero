@@ -1251,7 +1251,7 @@ private:
       return epee::net_utils::invoke_http_json(uri, req, res, m_http_client, timeout, http_method);
     }
     template<class t_request, class t_response>
-    inline bool invoke_http_bin(const boost::string_ref uri, const t_request& req, t_response& res, std::chrono::milliseconds timeout = std::chrono::seconds(15), const boost::string_ref http_method = "GET")
+    inline bool invoke_http_bin(const boost::string_ref uri, const t_request& req, t_response& res, std::chrono::milliseconds timeout = std::chrono::seconds(15), const boost::string_ref http_method = "POST")
     {
       if (m_offline) return false;
       boost::lock_guard<boost::recursive_mutex> lock(m_daemon_rpc_mutex);

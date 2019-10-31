@@ -72,7 +72,7 @@ namespace epee
 
 
     template<class t_request, class t_response, class t_transport>
-    bool invoke_http_bin(const boost::string_ref uri, const t_request& out_struct, t_response& result_struct, t_transport& transport, std::chrono::milliseconds timeout = std::chrono::seconds(15), const boost::string_ref method = "GET")
+    bool invoke_http_bin(const boost::string_ref uri, const t_request& out_struct, t_response& result_struct, t_transport& transport, std::chrono::milliseconds timeout = std::chrono::seconds(15), const boost::string_ref method = "POST")
     {
       std::string req_param;
       if(!serialization::store_t_to_binary(out_struct, req_param))
