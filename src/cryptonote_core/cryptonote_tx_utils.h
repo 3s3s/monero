@@ -126,12 +126,12 @@ namespace cryptonote
                                       std::vector<rct::key> &amount_keys,
                                       crypto::public_key &out_eph_public_key) ;
 
-//  bool generate_genesis_block(
-//      block& bl
-//    , std::string const & genesis_tx
-//    , uint32_t nonce
-//    );
-//
+  bool generate_genesis_block(
+      block& bl
+    , std::string const & genesis_tx
+    , uint32_t nonce
+    );
+
 //  class Blockchain;
 //  bool get_block_longhash(const Blockchain *pb, const block& b, crypto::hash& res, const uint64_t height, const int miners);
 //  void get_altblock_longhash(const block& b, crypto::hash& res, const uint64_t main_height, const uint64_t height,

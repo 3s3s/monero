@@ -641,28 +641,28 @@ namespace cryptonote
      return construct_tx_and_get_tx_key(sender_account_keys, subaddresses, sources, destinations_copy, change_addr, extra, tx, unlock_time, tx_key, additional_tx_keys, false, { rct::RangeProofBorromean, 0}, NULL);
   }
   //---------------------------------------------------------------
-//  bool generate_genesis_block(
-//      block& bl
-//    , std::string const & genesis_tx
-//    , uint32_t nonce
-//    )
-//  {
-//    //genesis block
-//    bl = {};
-//
-//    blobdata tx_bl;
-//    bool r = string_tools::parse_hexstr_to_binbuff(genesis_tx, tx_bl);
-//    CHECK_AND_ASSERT_MES(r, false, "failed to parse coinbase tx from hard coded blob");
-//    r = parse_and_validate_tx_from_blob(tx_bl, bl.miner_tx);
-//    CHECK_AND_ASSERT_MES(r, false, "failed to parse coinbase tx from hard coded blob");
-//    bl.major_version = CURRENT_BLOCK_MAJOR_VERSION;
-//    bl.minor_version = CURRENT_BLOCK_MINOR_VERSION;
-//    bl.timestamp = 0;
-//    bl.nonce = nonce;
-//    miner::find_nonce_for_given_block(NULL, bl, 1, 0);
-//    bl.invalidate_hashes();
-//    return true;
-//  }
+  bool generate_genesis_block(
+      block& bl
+    , std::string const & genesis_tx
+    , uint32_t nonce
+    )
+  {
+    //genesis block
+    bl = {};
+
+    blobdata tx_bl;
+    bool r = string_tools::parse_hexstr_to_binbuff(genesis_tx, tx_bl);
+    CHECK_AND_ASSERT_MES(r, false, "failed to parse coinbase tx from hard coded blob");
+    r = parse_and_validate_tx_from_blob(tx_bl, bl.miner_tx);
+    CHECK_AND_ASSERT_MES(r, false, "failed to parse coinbase tx from hard coded blob");
+    bl.major_version = CURRENT_BLOCK_MAJOR_VERSION;
+    bl.minor_version = CURRENT_BLOCK_MINOR_VERSION;
+    bl.timestamp = 0;
+    bl.nonce = nonce;
+    //miner::find_nonce_for_given_block(NULL, bl, 1, 0);  // TODO woodser: do not depend on miner for generating new wallet?
+    bl.invalidate_hashes();
+    return true;
+  }
 //  //---------------------------------------------------------------
 //  void get_altblock_longhash(const block& b, crypto::hash& res, const uint64_t main_height, const uint64_t height, const uint64_t seed_height, const crypto::hash& seed_hash)
 //  {
