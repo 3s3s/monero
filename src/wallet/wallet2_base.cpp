@@ -2980,7 +2980,13 @@ void wallet2_base::clear_soft(bool keep_key_images)
   m_blockchain.push_back(get_block_hash(b));
   m_last_block_reward = cryptonote::get_outs_money_amount(b.miner_tx);
 }
-
+//----------------------------------------------------------------------------------------------------
+std::string wallet2_base::get_encrypted_text()
+{
+  std::cout << "wallet2_base::get_encrypted_text()" << std::endl;
+  return std::string("ENCRYPTED_TEXT_PLACEHOLDER");
+}
+//----------------------------------------------------------------------------------------------------
 /*!
  * \brief Stores wallet information to wallet file.
  * \param  keys_file_name Name of wallet file
