@@ -1314,8 +1314,6 @@ private:
     void set_offline(bool offline = true);
 
   private:
-    std::string get_encrypted_text();
-
     /*!
      * \brief  Stores wallet information to wallet file.
      * \param  keys_file_name Name of wallet file
