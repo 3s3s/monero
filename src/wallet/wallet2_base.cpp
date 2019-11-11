@@ -3218,8 +3218,6 @@ void wallet2_base::load_from_buffers(const std::string& keys_buf, const std::str
   }
   LOG_PRINT_L0("Loaded wallet keys file, with public address: " << m_account.get_public_address_str(m_nettype));
 
-  cout << "Loaded keys, attempting to use cache buffer..." << endl;
-
   //keys loaded ok!
   //use wallet cache if it is available, otherwise it will be built
   if (!cache_buf.empty())
@@ -3303,8 +3301,6 @@ void wallet2_base::load_from_buffers(const std::string& keys_buf, const std::str
       m_account_public_address.m_view_public_key  != m_account.get_keys().m_account_address.m_view_public_key,
       error::wallet_files_doesnt_correspond, m_keys_file, m_wallet_file);
   }
-
-  cout << "Generating genesis..." << endl;
 
   cryptonote::block genesis;
   generate_genesis(genesis);
