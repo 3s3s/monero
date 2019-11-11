@@ -2986,6 +2986,8 @@ std::string wallet2_base::get_address_file_data() {
   return m_account.get_public_address_str(m_nettype);
 }
 std::string wallet2_base::get_keys_file_data(const epee::wipeable_string& password, bool watch_only) {
+  trim_hashchain(); // TODO woodser: ok to call twice for this and cache_file_data?
+
   cout << "wallet2_base::get_keys_file_data()" << endl;
 
   std::string account_data;
@@ -3184,11 +3186,28 @@ std::string wallet2_base::get_keys_file_data(const epee::wipeable_string& passwo
 
   std::string buf;
   r = ::serialization::dump_binary(keys_file_data, buf);
-  return buff;
+  return buf;
 }
 std::string wallet2_base::get_cache_file_data(const epee::wipeable_string& password) {
   cout << "wallet2_base::get_cache_file_data()" << endl;
-  return "TEMP CACHE DATA";
+  
+  trim_hashchain(); // TODO woodser: ok to call twice for this and cache_file_data?
+
+  std::stringstream oss;
+  boost::archive::portable_binary_oarchive ar(oss);
+  ar << *this;
+
+  wallet2_base::cache_file_data cache_file_data = {};
+  cache_file_data.cache_data = oss.str();
+  std::string cipher;
+  cipher.resize(cache_file_data.cache_data.size());
+  cache_file_data.iv = crypto::rand<crypto::chacha_iv>();
+  crypto::chacha20(cache_file_data.cache_data.data(), cache_file_data.cache_data.size(), m_cache_key, cache_file_data.iv, &cipher[0]);
+  cache_file_data.cache_data = cipher;
+
+  std::string buf;
+  ::serialization::dump_binary(cache_file_data, buf);
+  return buf;
 }
 void wallet2_base::load_wallet_data(const epee::wipeable_string& password, const std::string& keys_data, const std::string& cache_data) {
   cout << "wallet2_base::load_wallet_from_data(...)" << endl;
