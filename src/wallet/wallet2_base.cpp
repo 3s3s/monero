@@ -2981,14 +2981,17 @@ void wallet2_base::clear_soft(bool keep_key_images)
   m_last_block_reward = cryptonote::get_outs_money_amount(b.miner_tx);
 }
 //----------------------------------------------------------------------------------------------------
-std::string wallet2_base::get_address_file_data() {
-  cout << "wallet2_base::get_address_file_data()" << endl;
+
+// TODO: remove duplicate code in wallet2 to use these functions
+
+std::string wallet2_base::get_address_file_buffer() {
+  cout << "wallet2_base::get_address_file_buffer()" << endl;
   return m_account.get_public_address_str(m_nettype);
 }
-std::string wallet2_base::get_keys_file_data(const epee::wipeable_string& password, bool watch_only) {
-  trim_hashchain(); // TODO woodser: ok to call twice for this and cache_file_data?
+std::string wallet2_base::get_keys_file_buffer(const epee::wipeable_string& password, bool watch_only) {
+  trim_hashchain(); // TODO woodser: this is being called twice, collapse into get_file_buffers()? string[]
 
-  cout << "wallet2_base::get_keys_file_data()" << endl;
+  cout << "wallet2_base::get_keys_file_buffer()" << endl;
 
   std::string account_data;
   std::string multisig_signers;
@@ -3188,8 +3191,8 @@ std::string wallet2_base::get_keys_file_data(const epee::wipeable_string& passwo
   r = ::serialization::dump_binary(keys_file_data, buf);
   return buf;
 }
-std::string wallet2_base::get_cache_file_data(const epee::wipeable_string& password) {
-  cout << "wallet2_base::get_cache_file_data()" << endl;
+std::string wallet2_base::get_cache_file_buffer(const epee::wipeable_string& password) {
+  cout << "wallet2_base::get_cache_file_buffer()" << endl;
   
   trim_hashchain(); // TODO woodser: ok to call twice for this and cache_file_data?
 
@@ -3209,11 +3212,18 @@ std::string wallet2_base::get_cache_file_data(const epee::wipeable_string& passw
   ::serialization::dump_binary(cache_file_data, buf);
   return buf;
 }
-void wallet2_base::load_wallet_data(const epee::wipeable_string& password, const std::string& keys_data, const std::string& cache_data) {
-  cout << "wallet2_base::load_wallet_from_data(...)" << endl;
+bool wallet2_base::load_from_buffers(const epee::wipeable_string& password, const std::string& keys_buf, const std::string& cache_buf) {
+  cout << "wallet2_base::load_from_buffers(...)" << endl;
   cout << "Password: ..." << endl;
-  cout << "Keys data: " << keys_data << endl;
-  cout << "Cache data: " << cache_data << endl;
+  //cout << "Keys data: " << keys_data << endl;
+  //cout << "Cache data: " << cache_data << endl;
+  throw runtime_error("Not implemented");
+}
+bool wallet2_base::load_keys_from_buffer(const epee::wipeable_string& password, const std::string& keys_buf) {
+  cout << "wallet2_base::load_keys_from_buffer(...)" << endl;
+  cout << "Password: ..." << endl;
+  //cout << "Keys data: " << keys_data << endl;
+  //cout << "Cache data: " << cache_data << endl;
   throw runtime_error("Not implemented");
 }
 //----------------------------------------------------------------------------------------------------

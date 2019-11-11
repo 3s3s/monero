@@ -1314,12 +1314,13 @@ private:
     void set_offline(bool offline = true);
 
     /*!
-     * \brief In-memory wallet import and export.
+     * \brief Wallet import and export using buffers and not the file system.
      */
-    std::string get_address_file_data();
-    std::string get_keys_file_data(const epee::wipeable_string& password, bool watch_only);
-    std::string get_cache_file_data(const epee::wipeable_string& password);
-    void load_wallet_data(const epee::wipeable_string& password, const std::string& keys_data, const std::string& cache_data);
+    std::string get_address_file_buffer();
+    std::string get_keys_file_buffer(const epee::wipeable_string& password, bool watch_only);
+    std::string get_cache_file_buffer(const epee::wipeable_string& password);
+    bool load_from_buffers(const epee::wipeable_string& password, const std::string& keys_buf, const std::string& cache_buf); // this is counterpart to load(path, ...)
+    bool load_keys_from_buffer(const epee::wipeable_string& password, const std::string& keys_buf); // TODO woodser: this should be private
   private:
     /*!
      * \brief  Stores wallet information to wallet file.
