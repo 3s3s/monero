@@ -3189,7 +3189,6 @@ std::string wallet2_base::get_keys_file_buffer(const epee::wipeable_string& pass
 
   std::string buf;
   r = ::serialization::dump_binary(keys_file_data, buf);
-  cout << "RETURNING KEYS BUFFER: " << buf << endl;
   return buf;
 }
 std::string wallet2_base::get_cache_file_buffer(const epee::wipeable_string& password) {
