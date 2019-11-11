@@ -2985,13 +2985,10 @@ void wallet2_base::clear_soft(bool keep_key_images)
 // TODO: remove duplicate code in wallet2 to use these functions
 
 std::string wallet2_base::get_address_file_buffer() {
-  cout << "wallet2_base::get_address_file_buffer()" << endl;
   return m_account.get_public_address_str(m_nettype);
 }
 std::string wallet2_base::get_keys_file_buffer(const epee::wipeable_string& password, bool watch_only) {
   trim_hashchain(); // TODO woodser: this is being called twice, collapse into get_file_buffers()? string[]
-
-  cout << "wallet2_base::get_keys_file_buffer()" << endl;
 
   std::string account_data;
   std::string multisig_signers;
@@ -3192,7 +3189,6 @@ std::string wallet2_base::get_keys_file_buffer(const epee::wipeable_string& pass
   return buf;
 }
 std::string wallet2_base::get_cache_file_buffer(const epee::wipeable_string& password) {
-  cout << "wallet2_base::get_cache_file_buffer()" << endl;
   
   trim_hashchain(); // TODO woodser: ok to call twice for this and cache_file_data?
 
@@ -3213,10 +3209,6 @@ std::string wallet2_base::get_cache_file_buffer(const epee::wipeable_string& pas
   return buf;
 }
 void wallet2_base::load_from_buffers(const std::string& keys_buf, const std::string& cache_buf, const epee::wipeable_string& password) {
-  cout << "wallet2_base::load_from_buffers(...)" << endl;
-  cout << "Password: ..." << endl;
-  //cout << "Keys data: " << keys_data << endl;
-  //cout << "Cache data: " << cache_data << endl;
 
   clear();  // TODO woodser: needed? don't duplicate call with load()
 
@@ -3333,37 +3325,34 @@ void wallet2_base::load_from_buffers(const std::string& keys_buf, const std::str
   if (get_num_subaddress_accounts() == 0)
     add_subaddress_account(tr("Primary account"));
 
-  try
-  {
-    find_and_save_rings(false);
-  }
-  catch (const std::exception &e)
-  {
-    MERROR("Failed to save rings, will try again next time");
-  }
-
-  try
-  {
-    m_message_store.read_from_file(get_multisig_wallet_state(), m_mms_file);
-  }
-  catch (const std::exception &e)
-  {
-    MERROR("Failed to initialize MMS, it will be unusable");
-  }
+  // TODO woodser: cannot get these from disk
+//  try
+//  {
+//    find_and_save_rings(false);
+//  }
+//  catch (const std::exception &e)
+//  {
+//    MERROR("Failed to save rings, will try again next time");
+//  }
+//
+//  try
+//  {
+//    m_message_store.read_from_file(get_multisig_wallet_state(), m_mms_file);
+//  }
+//  catch (const std::exception &e)
+//  {
+//    MERROR("Failed to initialize MMS, it will be unusable");
+//  }
 }
 bool wallet2_base::load_keys_from_buffer(const std::string& keys_buf, const epee::wipeable_string& password) {
-  cout << "wallet2_base::load_keys_from_buffer(...)" << endl;
-  cout << "Keys buf: " << keys_buf << endl;
 
   rapidjson::Document json;
   wallet2_base::keys_file_data keys_file_data;
   bool encrypted_secret_keys = false;
 
   // Decrypt the contents
-  cout << "attempting to decrypt!!!" << endl;
   bool r = ::serialization::parse_binary(keys_buf, keys_file_data);
   THROW_WALLET_EXCEPTION_IF(!r, error::wallet_internal_error, "internal error: failed to deserialize keys buffer");
-  cout << "done decrypting!!!" << endl;
   crypto::chacha_key key;
   crypto::generate_chacha_key(password.data(), password.size(), key, m_kdf_rounds);
   std::string account_data;
