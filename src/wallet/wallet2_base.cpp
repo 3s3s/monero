@@ -2981,6 +2981,26 @@ void wallet2_base::clear_soft(bool keep_key_images)
   m_last_block_reward = cryptonote::get_outs_money_amount(b.miner_tx);
 }
 //----------------------------------------------------------------------------------------------------
+std::string wallet2_base::get_address_file_data() {
+  cout << "wallet2_base::get_address_file_data()" << endl;
+  return m_account.get_public_address_str(m_nettype);
+}
+std::string wallet2_base::get_keys_file_data(const epee::wipeable_string& password) {
+  cout << "wallet2_base::get_keys_file_data()" << endl;
+  return "TEMP KEYS DATA";
+}
+std::string wallet2_base::get_cache_file_data(const epee::wipeable_string& password) {
+  cout << "wallet2_base::get_cache_file_data()" << endl;
+  return "TEMP CACHE DATA";
+}
+void wallet2_base::load_wallet_data(const epee::wipeable_string& password, const std::string& keys_data, const std::string& cache_data) {
+  cout << "wallet2_base::load_wallet_from_data(...)" << endl;
+  cout << "Password: ..." << endl;
+  cout << "Keys data: " << keys_data << endl;
+  cout << "Cache data: " << cache_data << endl;
+  throw runtime_error("Not implemented");
+}
+//----------------------------------------------------------------------------------------------------
 /*!
  * \brief Stores wallet information to wallet file.
  * \param  keys_file_name Name of wallet file
