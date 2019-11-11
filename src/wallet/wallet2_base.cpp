@@ -3182,7 +3182,6 @@ std::string wallet2_base::get_keys_file_data(const epee::wipeable_string& passwo
   crypto::chacha20(account_data.data(), account_data.size(), key, keys_file_data.iv, &cipher[0]);
   keys_file_data.account_data = cipher;
 
-  std::string tmp_file_name = keys_file_name + ".new";
   std::string buf;
   r = ::serialization::dump_binary(keys_file_data, buf);
   return buff;
