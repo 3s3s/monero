@@ -1317,7 +1317,7 @@ private:
      * \brief In-memory wallet import and export.
      */
     std::string get_address_file_data();
-    std::string get_keys_file_data(const epee::wipeable_string& password);
+    std::string get_keys_file_data(const epee::wipeable_string& password, bool watch_only);
     std::string get_cache_file_data(const epee::wipeable_string& password);
     void load_wallet_data(const epee::wipeable_string& password, const std::string& keys_data, const std::string& cache_data);
   private:
