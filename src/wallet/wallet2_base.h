@@ -1319,8 +1319,8 @@ private:
     std::string get_address_file_buffer();
     std::string get_keys_file_buffer(const epee::wipeable_string& password, bool watch_only);
     std::string get_cache_file_buffer(const epee::wipeable_string& password);
-    bool load_from_buffers(const epee::wipeable_string& password, const std::string& keys_buf, const std::string& cache_buf); // this is counterpart to load(path, ...)
-    bool load_keys_from_buffer(const epee::wipeable_string& password, const std::string& keys_buf); // TODO woodser: this should be private
+    void load_from_buffers(const std::string& keys_buf, const std::string& cache_buf, const epee::wipeable_string& password); // this is counterpart to load(path, ...)
+    bool load_keys_from_buffer(const std::string& keys_buf, const epee::wipeable_string& password); // TODO woodser: this should be private
   private:
     /*!
      * \brief  Stores wallet information to wallet file.
