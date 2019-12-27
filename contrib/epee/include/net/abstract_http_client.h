@@ -148,16 +148,15 @@ namespace epee
       {
       public:
         virtual ~abstract_http_client() {}
-        bool set_server(const std::string& address, boost::optional<login> user)
+        bool set_server(const std::string& address, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect)
         {
           http::url_content parsed{};
           const bool r = parse_url(address, parsed);
           CHECK_AND_ASSERT_MES(r, false, "failed to parse url: " << address);
-          set_server(std::move(parsed.host), std::to_string(parsed.port), std::move(user));
+          set_server(std::move(parsed.host), std::to_string(parsed.port), std::move(user), std::move(ssl_options));
           return true;
         }
-        virtual void set_server(std::string host, std::string port, boost::optional<login> user) = 0;
-        virtual bool set_server(const std::string& address, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect) = 0;
+        virtual void set_server(std::string host, std::string port, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect) = 0;
         virtual void set_auto_connect(bool auto_connect) = 0;
         template<typename F>
         void set_connector(F connector) {}  // TODO woodser: set_connector cannot be virtual because of template, remove from abstract?
