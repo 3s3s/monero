@@ -152,7 +152,7 @@ namespace net_utils
 
 		public:
 			explicit http_simple_client_template()
-				: i_target_handler()
+				: i_target_handler(), abstract_http_client()
 				, m_net_client()
 				, m_host_buff()
 				, m_port()
@@ -172,7 +172,13 @@ namespace net_utils
 			const std::string &get_host() const { return m_host_buff; };
 			const std::string &get_port() const { return m_port; };
 
-			void set_server(std::string host, std::string port, boost::optional<login> user, ssl_options_t ssl_options)
+			// TODO: why must this be re-defined when it is defined in abstract_http_client
+      bool set_server(const std::string& address, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect) override
+      {
+        return abstract_http_client::set_server(address, user, ssl_options);
+      }
+
+			virtual void set_server(std::string host, std::string port, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect) override
 			{
 				CRITICAL_REGION_LOCAL(m_lock);
 				disconnect();
@@ -182,7 +188,7 @@ namespace net_utils
 				m_net_client.set_ssl(std::move(ssl_options));
 			}
 
-			void set_auto_connect(bool auto_connect)
+			void set_auto_connect(bool auto_connect) override
 			{
 				m_auto_connect = auto_connect;
 			}
@@ -194,25 +200,25 @@ namespace net_utils
 				m_net_client.set_connector(std::move(connector));
 			}
 
-      bool connect(std::chrono::milliseconds timeout)
+      bool connect(std::chrono::milliseconds timeout) override
       {
         CRITICAL_REGION_LOCAL(m_lock);
         return m_net_client.connect(m_host_buff, m_port, timeout);
       }
 			//---------------------------------------------------------------------------
-			bool disconnect()
+			bool disconnect() override
 			{
 				CRITICAL_REGION_LOCAL(m_lock);
 				return m_net_client.disconnect();
 			}
 			//---------------------------------------------------------------------------
-			bool is_connected(bool *ssl = NULL)
+			bool is_connected(bool *ssl = NULL) override
 			{
 				CRITICAL_REGION_LOCAL(m_lock);
 				return m_net_client.is_connected(ssl);
 			}
 			//---------------------------------------------------------------------------
-			virtual bool handle_target_data(std::string& piece_of_transfer)
+			virtual bool handle_target_data(std::string& piece_of_transfer) override
 			{
 				CRITICAL_REGION_LOCAL(m_lock);
 				m_response_info.m_body += piece_of_transfer;
@@ -225,15 +231,14 @@ namespace net_utils
         return true;
       }
 			//---------------------------------------------------------------------------
-			inline 
-				bool invoke_get(const boost::string_ref uri, std::chrono::milliseconds timeout, const std::string& body = std::string(), const http_response_info** ppresponse_info = NULL, const fields_list& additional_params = fields_list())
+			inline bool invoke_get(const boost::string_ref uri, std::chrono::milliseconds timeout, const std::string& body = std::string(), const http_response_info** ppresponse_info = NULL, const fields_list& additional_params = fields_list()) override
 			{
 					CRITICAL_REGION_LOCAL(m_lock);
 					return invoke(uri, "GET", body, timeout, ppresponse_info, additional_params);
 			}
 
 			//---------------------------------------------------------------------------
-			inline bool invoke(const boost::string_ref uri, const boost::string_ref method, const std::string& body, std::chrono::milliseconds timeout, const http_response_info** ppresponse_info = NULL, const fields_list& additional_params = fields_list())
+			inline bool invoke(const boost::string_ref uri, const boost::string_ref method, const std::string& body, std::chrono::milliseconds timeout, const http_response_info** ppresponse_info = NULL, const fields_list& additional_params = fields_list()) override
 			{
 				CRITICAL_REGION_LOCAL(m_lock);
 				if(!is_connected())
@@ -306,7 +311,7 @@ namespace net_utils
 				return false;
 			}
 			//---------------------------------------------------------------------------
-			inline bool invoke_post(const boost::string_ref uri, const std::string& body, std::chrono::milliseconds timeout, const http_response_info** ppresponse_info = NULL, const fields_list& additional_params = fields_list())
+			inline bool invoke_post(const boost::string_ref uri, const std::string& body, std::chrono::milliseconds timeout, const http_response_info** ppresponse_info = NULL, const fields_list& additional_params = fields_list()) override
 			{
 				CRITICAL_REGION_LOCAL(m_lock);
 				return invoke(uri, "POST", body, timeout, ppresponse_info, additional_params);
@@ -320,12 +325,12 @@ namespace net_utils
 				return handle_reciev(timeout);
 			}
 			//---------------------------------------------------------------------------
-			uint64_t get_bytes_sent() const
+			uint64_t get_bytes_sent() const override
 			{
 				return m_net_client.get_bytes_sent();
 			}
 			//---------------------------------------------------------------------------
-			uint64_t get_bytes_received() const
+			uint64_t get_bytes_received() const override
 			{
 				return m_net_client.get_bytes_received();
 			}

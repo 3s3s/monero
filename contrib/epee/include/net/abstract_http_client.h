@@ -147,8 +147,9 @@ namespace epee
       class abstract_http_client
       {
       public:
+        abstract_http_client() {}
         virtual ~abstract_http_client() {}
-        bool set_server(const std::string& address, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect)
+        virtual bool set_server(const std::string& address, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect)
         {
           http::url_content parsed{};
           const bool r = parse_url(address, parsed);
