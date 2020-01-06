@@ -711,7 +711,6 @@ private:
      * \param password  Password to protect new wallet (TODO: probably better save the password in the wallet object?)
      */
     void store_to(const std::string &path, const epee::wipeable_string &password);
-    void get_file_data(const epee::wipeable_string &password, wallet2::keys_file_data &keys_file_data, wallet2::cache_file_data &cache_file_data);
     /*!
      * \brief get_keys_file_data    Get wallet keys data which can be stored to a wallet file.
      * \param  password             Password of the encrypted wallet buffer (TODO: probably better save the password in the wallet object?)
