@@ -5435,7 +5435,6 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
 
   try
   {
-    std::cout << "find_and_save_rings()..." << std::endl;
     find_and_save_rings(false);
   }
   catch (const std::exception &e)
@@ -5445,8 +5444,7 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
   
   try
   {
-    std::cout << "m_message_store.read_from_file()..." << std::endl;
-    m_message_store.read_from_file(get_multisig_wallet_state(), m_mms_file);
+    if (!in_memory) m_message_store.read_from_file(get_multisig_wallet_state(), m_mms_file);
   }
   catch (const std::exception &e)
   {
