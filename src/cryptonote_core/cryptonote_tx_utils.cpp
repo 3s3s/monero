@@ -663,16 +663,9 @@ namespace cryptonote
     bl.minor_version = CURRENT_BLOCK_MINOR_VERSION;
     bl.timestamp = 0;
     bl.nonce = nonce;
-
-    //std::cout << "INITIALIZING BLOCK HASH" << std::endl;
-    //cryptonote::get_block_longhash(NULL, bl, bl.hash, 0, tools::get_max_concurrency());
-    //std::cout << "DONE INITIALIZING BLOCK HASH" << std::endl;
-    //crypto::hash hash;
-    //cryptonote::get_block_longhash(NULL, bl, hash, 0, tools::get_max_concurrency());
-
-    miner::find_nonce_for_given_block([](const cryptonote::block &b, uint64_t height, unsigned int threads, crypto::hash &hash){  // TODO woodser: hardcode nonces from config
-      return cryptonote::get_block_longhash(NULL, b, hash, height, threads);
-    }, bl, 1, 0);
+//    miner::find_nonce_for_given_block([](const cryptonote::block &b, uint64_t height, unsigned int threads, crypto::hash &hash){  // TODO woodser: hardcode nonces from config
+//      return cryptonote::get_block_longhash(NULL, b, hash, height, threads);
+//    }, bl, 1, 0);
     bl.invalidate_hashes();
     return true;
   }
