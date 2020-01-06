@@ -4360,7 +4360,6 @@ crypto::secret_key wallet2::generate(const std::string& wallet_, const epee::wip
   crypto::secret_key retval = m_account.generate(recovery_param, recover, two_random);
 
   init_type(hw::device::device_type::SOFTWARE);
-  cout << "GENERATE CALLING SETUP KEYS" << endl;
   setup_keys(password);
 
   // calculate a starting refresh height
