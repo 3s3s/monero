@@ -1106,7 +1106,7 @@ void wallet_device_callback::on_progress(const hw::device_progress& event)
     wallet->on_device_progress(event);
 }
 
-wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended, epee::net_utils::http::abstract_http_client *http_client):
+wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended, std::shared_ptr<epee::net_utils::http::abstract_http_client> http_client):
   m_http_client(http_client),
   m_multisig_rescan_info(NULL),
   m_multisig_rescan_k(NULL),
@@ -5255,12 +5255,12 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
 
   //keys loaded ok!
   //try to load wallet file. but even if we failed, it is not big problem
-  if(!in_memory && !boost::filesystem::exists(m_wallet_file, e) || e)
+  if(!in_memory && (!boost::filesystem::exists(m_wallet_file, e) || e))
   {
     LOG_PRINT_L0("file not found: " << m_wallet_file << ", starting with empty blockchain");
     m_account_public_address = m_account.get_keys().m_account_address;
   }
-  else if (!in_memory || !cache_buf.empty())  // TODO woodser: hack to check for empty cache
+  else if (!in_memory || !cache_buf.empty())
   {
     wallet2::cache_file_data cache_file_data;
     std::string cache_file_buf;
