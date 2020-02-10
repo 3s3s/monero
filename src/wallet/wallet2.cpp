@@ -3942,7 +3942,7 @@ bool wallet2::load_keys(const std::string& keys_file_name, const epee::wipeable_
   }
 
   // Decrypt the contents
-  r = ::serialization::parse_binary(keys_file_buf, keys_file_data);
+  r = ::serialization::parse_binary(use_fs ? keys_file_buf : keys_buf, keys_file_buf, keys_file_data);
   THROW_WALLET_EXCEPTION_IF(!r, error::wallet_internal_error, "internal error: failed to deserialize \"" + keys_file_name + '\"');
   crypto::chacha_key key;
   crypto::generate_chacha_key(password.data(), password.size(), key, m_kdf_rounds);
@@ -4257,10 +4257,13 @@ bool wallet2::load_keys(const std::string& keys_file_name, const epee::wipeable_
       if (m_ask_password == AskPasswordToDecrypt && !m_unattended && !m_watch_only)
         encrypt_keys(key);
       bool saved_ret = store_keys(keys_file_name, password, m_watch_only);
-      if (!saved_ret)
+      if (use_fs)
       {
-        // just moan a bit, but not fatal
-        MERROR("Error saving keys file with encrypted keys, not fatal");
+        if (!saved_ret)
+        {
+          // just moan a bit, but not fatal
+          MERROR("Error saving keys file with encrypted keys, not fatal");
+        }
       }
       if (m_ask_password == AskPasswordToDecrypt && !m_unattended && !m_watch_only)
         decrypt_keys(key);
@@ -5538,7 +5541,7 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
           catch (...)
           {
             LOG_PRINT_L0("Failed to open portable binary, trying unportable");
-            boost::filesystem::copy_file(m_wallet_file, m_wallet_file + ".unportable", boost::filesystem::copy_option::overwrite_if_exists);
+            if (use_fs) boost::filesystem::copy_file(m_wallet_file, m_wallet_file + ".unportable", boost::filesystem::copy_option::overwrite_if_exists);
             std::stringstream iss;
             iss.str("");
             iss << cache_data;
@@ -5560,7 +5563,7 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
       catch (...)
       {
         LOG_PRINT_L0("Failed to open portable binary, trying unportable");
-        boost::filesystem::copy_file(m_wallet_file, m_wallet_file + ".unportable", boost::filesystem::copy_option::overwrite_if_exists);
+        if (use_fs) boost::filesystem::copy_file(m_wallet_file, m_wallet_file + ".unportable", boost::filesystem::copy_option::overwrite_if_exists);
         std::stringstream iss;
         iss.str("");
         iss << cache_file_buf;
@@ -5711,7 +5714,7 @@ void wallet2::store_to(const std::string &path, const epee::wipeable_string &pas
     }
   }
 
-  // prepare wallet cache data
+  // get wallet cache data
   wallet2::cache_file_data cache_file_data = {};
   get_cache_file_data(password, cache_file_data);
 
