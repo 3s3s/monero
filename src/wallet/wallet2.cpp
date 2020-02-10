@@ -3660,6 +3660,213 @@ bool wallet2::store_keys(const std::string& keys_file_name, const epee::wipeable
   return true;
 }
 //----------------------------------------------------------------------------------------------------
+bool wallet2::get_keys_file_data(const epee::wipeable_string& password, bool watch_only, wallet2::keys_file_data &keys_file_data)
+{
+  std::string account_data;
+  std::string multisig_signers;
+  std::string multisig_derivations;
+  cryptonote::account_base account = m_account;
+
+  crypto::chacha_key key;
+  crypto::generate_chacha_key(password.data(), password.size(), key, m_kdf_rounds);
+
+  if (m_ask_password == AskPasswordToDecrypt && !m_unattended && !m_watch_only)
+  {
+    account.encrypt_viewkey(key);
+    account.decrypt_keys(key);
+  }
+
+  if (watch_only)
+    account.forget_spend_key();
+
+  account.encrypt_keys(key);
+
+  bool r = epee::serialization::store_t_to_binary(account, account_data);
+  CHECK_AND_ASSERT_MES(r, false, "failed to serialize wallet keys");
+
+  // Create a JSON object with "key_data" and "seed_language" as keys.
+  rapidjson::Document json;
+  json.SetObject();
+  rapidjson::Value value(rapidjson::kStringType);
+  value.SetString(account_data.c_str(), account_data.length());
+  json.AddMember("key_data", value, json.GetAllocator());
+  if (!seed_language.empty())
+  {
+    value.SetString(seed_language.c_str(), seed_language.length());
+    json.AddMember("seed_language", value, json.GetAllocator());
+  }
+
+  rapidjson::Value value2(rapidjson::kNumberType);
+
+  value2.SetInt(m_key_device_type);
+  json.AddMember("key_on_device", value2, json.GetAllocator());
+
+  value2.SetInt(watch_only ? 1 :0); // WTF ? JSON has different true and false types, and not boolean ??
+  json.AddMember("watch_only", value2, json.GetAllocator());
+
+  value2.SetInt(m_multisig ? 1 :0);
+  json.AddMember("multisig", value2, json.GetAllocator());
+
+  value2.SetUint(m_multisig_threshold);
+  json.AddMember("multisig_threshold", value2, json.GetAllocator());
+
+  if (m_multisig)
+  {
+    bool r = ::serialization::dump_binary(m_multisig_signers, multisig_signers);
+    CHECK_AND_ASSERT_MES(r, false, "failed to serialize wallet multisig signers");
+    value.SetString(multisig_signers.c_str(), multisig_signers.length());
+    json.AddMember("multisig_signers", value, json.GetAllocator());
+
+    r = ::serialization::dump_binary(m_multisig_derivations, multisig_derivations);
+    CHECK_AND_ASSERT_MES(r, false, "failed to serialize wallet multisig derivations");
+    value.SetString(multisig_derivations.c_str(), multisig_derivations.length());
+    json.AddMember("multisig_derivations", value, json.GetAllocator());
+
+    value2.SetUint(m_multisig_rounds_passed);
+    json.AddMember("multisig_rounds_passed", value2, json.GetAllocator());
+  }
+
+  value2.SetInt(m_always_confirm_transfers ? 1 :0);
+  json.AddMember("always_confirm_transfers", value2, json.GetAllocator());
+
+  value2.SetInt(m_print_ring_members ? 1 :0);
+  json.AddMember("print_ring_members", value2, json.GetAllocator());
+
+  value2.SetInt(m_store_tx_info ? 1 :0);
+  json.AddMember("store_tx_info", value2, json.GetAllocator());
+
+  value2.SetUint(m_default_mixin);
+  json.AddMember("default_mixin", value2, json.GetAllocator());
+
+  value2.SetUint(m_default_priority);
+  json.AddMember("default_priority", value2, json.GetAllocator());
+
+  value2.SetInt(m_auto_refresh ? 1 :0);
+  json.AddMember("auto_refresh", value2, json.GetAllocator());
+
+  value2.SetInt(m_refresh_type);
+  json.AddMember("refresh_type", value2, json.GetAllocator());
+
+  value2.SetUint64(m_refresh_from_block_height);
+  json.AddMember("refresh_height", value2, json.GetAllocator());
+
+  value2.SetInt(m_confirm_non_default_ring_size ? 1 :0);
+  json.AddMember("confirm_non_default_ring_size", value2, json.GetAllocator());
+
+  value2.SetInt(m_ask_password);
+  json.AddMember("ask_password", value2, json.GetAllocator());
+
+  value2.SetUint(m_min_output_count);
+  json.AddMember("min_output_count", value2, json.GetAllocator());
+
+  value2.SetUint64(m_min_output_value);
+  json.AddMember("min_output_value", value2, json.GetAllocator());
+
+  value2.SetInt(cryptonote::get_default_decimal_point());
+  json.AddMember("default_decimal_point", value2, json.GetAllocator());
+
+  value2.SetInt(m_merge_destinations ? 1 :0);
+  json.AddMember("merge_destinations", value2, json.GetAllocator());
+
+  value2.SetInt(m_confirm_backlog ? 1 :0);
+  json.AddMember("confirm_backlog", value2, json.GetAllocator());
+
+  value2.SetUint(m_confirm_backlog_threshold);
+  json.AddMember("confirm_backlog_threshold", value2, json.GetAllocator());
+
+  value2.SetInt(m_confirm_export_overwrite ? 1 :0);
+  json.AddMember("confirm_export_overwrite", value2, json.GetAllocator());
+
+  value2.SetInt(m_auto_low_priority ? 1 : 0);
+  json.AddMember("auto_low_priority", value2, json.GetAllocator());
+
+  value2.SetUint(m_nettype);
+  json.AddMember("nettype", value2, json.GetAllocator());
+
+  value2.SetInt(m_segregate_pre_fork_outputs ? 1 : 0);
+  json.AddMember("segregate_pre_fork_outputs", value2, json.GetAllocator());
+
+  value2.SetInt(m_key_reuse_mitigation2 ? 1 : 0);
+  json.AddMember("key_reuse_mitigation2", value2, json.GetAllocator());
+
+  value2.SetUint(m_segregation_height);
+  json.AddMember("segregation_height", value2, json.GetAllocator());
+
+  value2.SetInt(m_ignore_fractional_outputs ? 1 : 0);
+  json.AddMember("ignore_fractional_outputs", value2, json.GetAllocator());
+
+  value2.SetUint64(m_ignore_outputs_above);
+  json.AddMember("ignore_outputs_above", value2, json.GetAllocator());
+
+  value2.SetUint64(m_ignore_outputs_below);
+  json.AddMember("ignore_outputs_below", value2, json.GetAllocator());
+
+  value2.SetInt(m_track_uses ? 1 : 0);
+  json.AddMember("track_uses", value2, json.GetAllocator());
+
+  value2.SetInt(m_inactivity_lock_timeout);
+  json.AddMember("inactivity_lock_timeout", value2, json.GetAllocator());
+
+  value2.SetInt(m_setup_background_mining);
+  json.AddMember("setup_background_mining", value2, json.GetAllocator());
+
+  value2.SetUint(m_subaddress_lookahead_major);
+  json.AddMember("subaddress_lookahead_major", value2, json.GetAllocator());
+
+  value2.SetUint(m_subaddress_lookahead_minor);
+  json.AddMember("subaddress_lookahead_minor", value2, json.GetAllocator());
+
+  value2.SetInt(m_original_keys_available ? 1 : 0);
+  json.AddMember("original_keys_available", value2, json.GetAllocator());
+
+  value2.SetInt(m_export_format);
+  json.AddMember("export_format", value2, json.GetAllocator());
+
+  value2.SetUint(1);
+  json.AddMember("encrypted_secret_keys", value2, json.GetAllocator());
+
+  value.SetString(m_device_name.c_str(), m_device_name.size());
+  json.AddMember("device_name", value, json.GetAllocator());
+
+  value.SetString(m_device_derivation_path.c_str(), m_device_derivation_path.size());
+  json.AddMember("device_derivation_path", value, json.GetAllocator());
+
+  std::string original_address;
+  std::string original_view_secret_key;
+  if (m_original_keys_available)
+  {
+    original_address = get_account_address_as_str(m_nettype, false, m_original_address);
+    value.SetString(original_address.c_str(), original_address.length());
+    json.AddMember("original_address", value, json.GetAllocator());
+    original_view_secret_key = epee::string_tools::pod_to_hex(m_original_view_secret_key);
+    value.SetString(original_view_secret_key.c_str(), original_view_secret_key.length());
+    json.AddMember("original_view_secret_key", value, json.GetAllocator());
+  }
+
+  value2.SetInt(m_persistent_rpc_client_id ? 1 : 0);
+  json.AddMember("persistent_rpc_client_id", value2, json.GetAllocator());
+
+  value2.SetFloat(m_auto_mine_for_rpc_payment_threshold);
+  json.AddMember("auto_mine_for_rpc_payment", value2, json.GetAllocator());
+
+  value2.SetUint64(m_credits_target);
+  json.AddMember("credits_target", value2, json.GetAllocator());
+
+  // Serialize the JSON object
+  rapidjson::StringBuffer buffer;
+  rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+  json.Accept(writer);
+  account_data = buffer.GetString();
+
+  // Encrypt the entire JSON object.
+  std::string cipher;
+  cipher.resize(account_data.size());
+  keys_file_data.iv = crypto::rand<crypto::chacha_iv>();
+  crypto::chacha20(account_data.data(), account_data.size(), key, keys_file_data.iv, &cipher[0]);
+  keys_file_data.account_data = cipher;
+  return true;
+}
+//----------------------------------------------------------------------------------------------------
 void wallet2::setup_keys(const epee::wipeable_string &password)
 {
   crypto::chacha_key key;
@@ -5569,220 +5776,6 @@ void wallet2::store_to(const std::string &path, const epee::wipeable_string &pas
     m_message_store.write_to_file(get_multisig_wallet_state(), m_mms_file);
   }
   
-}
-//----------------------------------------------------------------------------------------------------
-/*!
- * \brief Get wallet keys data which can be stored to a wallet file.
- *
- * \param  password       Password of the encrypted wallet buffer
- * \param  watch_only     true to include only view key, false to include both spend and view keys
- * \return                the encrypted wallet as a buffer which can be stored to a wallet file
- */
-bool wallet2::get_keys_file_data(const epee::wipeable_string& password, bool watch_only, wallet2::keys_file_data &keys_file_data)
-{
-  std::string account_data;
-  std::string multisig_signers;
-  std::string multisig_derivations;
-  cryptonote::account_base account = m_account;
-
-  crypto::chacha_key key;
-  crypto::generate_chacha_key(password.data(), password.size(), key, m_kdf_rounds);
-
-  if (m_ask_password == AskPasswordToDecrypt && !m_unattended && !m_watch_only)
-  {
-    account.encrypt_viewkey(key);
-    account.decrypt_keys(key);
-  }
-
-  if (watch_only)
-    account.forget_spend_key();
-
-  account.encrypt_keys(key);
-
-  bool r = epee::serialization::store_t_to_binary(account, account_data);
-  CHECK_AND_ASSERT_MES(r, false, "failed to serialize wallet keys");
-
-  // Create a JSON object with "key_data" and "seed_language" as keys.
-  rapidjson::Document json;
-  json.SetObject();
-  rapidjson::Value value(rapidjson::kStringType);
-  value.SetString(account_data.c_str(), account_data.length());
-  json.AddMember("key_data", value, json.GetAllocator());
-  if (!seed_language.empty())
-  {
-    value.SetString(seed_language.c_str(), seed_language.length());
-    json.AddMember("seed_language", value, json.GetAllocator());
-  }
-
-  rapidjson::Value value2(rapidjson::kNumberType);
-
-  value2.SetInt(m_key_device_type);
-  json.AddMember("key_on_device", value2, json.GetAllocator());
-
-  value2.SetInt(watch_only ? 1 :0); // WTF ? JSON has different true and false types, and not boolean ??
-  json.AddMember("watch_only", value2, json.GetAllocator());
-
-  value2.SetInt(m_multisig ? 1 :0);
-  json.AddMember("multisig", value2, json.GetAllocator());
-
-  value2.SetUint(m_multisig_threshold);
-  json.AddMember("multisig_threshold", value2, json.GetAllocator());
-
-  if (m_multisig)
-  {
-    bool r = ::serialization::dump_binary(m_multisig_signers, multisig_signers);
-    CHECK_AND_ASSERT_MES(r, false, "failed to serialize wallet multisig signers");
-    value.SetString(multisig_signers.c_str(), multisig_signers.length());
-    json.AddMember("multisig_signers", value, json.GetAllocator());
-
-    r = ::serialization::dump_binary(m_multisig_derivations, multisig_derivations);
-    CHECK_AND_ASSERT_MES(r, false, "failed to serialize wallet multisig derivations");
-    value.SetString(multisig_derivations.c_str(), multisig_derivations.length());
-    json.AddMember("multisig_derivations", value, json.GetAllocator());
-
-    value2.SetUint(m_multisig_rounds_passed);
-    json.AddMember("multisig_rounds_passed", value2, json.GetAllocator());
-  }
-
-  value2.SetInt(m_always_confirm_transfers ? 1 :0);
-  json.AddMember("always_confirm_transfers", value2, json.GetAllocator());
-
-  value2.SetInt(m_print_ring_members ? 1 :0);
-  json.AddMember("print_ring_members", value2, json.GetAllocator());
-
-  value2.SetInt(m_store_tx_info ? 1 :0);
-  json.AddMember("store_tx_info", value2, json.GetAllocator());
-
-  value2.SetUint(m_default_mixin);
-  json.AddMember("default_mixin", value2, json.GetAllocator());
-
-  value2.SetUint(m_default_priority);
-  json.AddMember("default_priority", value2, json.GetAllocator());
-
-  value2.SetInt(m_auto_refresh ? 1 :0);
-  json.AddMember("auto_refresh", value2, json.GetAllocator());
-
-  value2.SetInt(m_refresh_type);
-  json.AddMember("refresh_type", value2, json.GetAllocator());
-
-  value2.SetUint64(m_refresh_from_block_height);
-  json.AddMember("refresh_height", value2, json.GetAllocator());
-
-  value2.SetInt(m_confirm_non_default_ring_size ? 1 :0);
-  json.AddMember("confirm_non_default_ring_size", value2, json.GetAllocator());
-
-  value2.SetInt(m_ask_password);
-  json.AddMember("ask_password", value2, json.GetAllocator());
-
-  value2.SetUint(m_min_output_count);
-  json.AddMember("min_output_count", value2, json.GetAllocator());
-
-  value2.SetUint64(m_min_output_value);
-  json.AddMember("min_output_value", value2, json.GetAllocator());
-
-  value2.SetInt(cryptonote::get_default_decimal_point());
-  json.AddMember("default_decimal_point", value2, json.GetAllocator());
-
-  value2.SetInt(m_merge_destinations ? 1 :0);
-  json.AddMember("merge_destinations", value2, json.GetAllocator());
-
-  value2.SetInt(m_confirm_backlog ? 1 :0);
-  json.AddMember("confirm_backlog", value2, json.GetAllocator());
-
-  value2.SetUint(m_confirm_backlog_threshold);
-  json.AddMember("confirm_backlog_threshold", value2, json.GetAllocator());
-
-  value2.SetInt(m_confirm_export_overwrite ? 1 :0);
-  json.AddMember("confirm_export_overwrite", value2, json.GetAllocator());
-
-  value2.SetInt(m_auto_low_priority ? 1 : 0);
-  json.AddMember("auto_low_priority", value2, json.GetAllocator());
-
-  value2.SetUint(m_nettype);
-  json.AddMember("nettype", value2, json.GetAllocator());
-
-  value2.SetInt(m_segregate_pre_fork_outputs ? 1 : 0);
-  json.AddMember("segregate_pre_fork_outputs", value2, json.GetAllocator());
-
-  value2.SetInt(m_key_reuse_mitigation2 ? 1 : 0);
-  json.AddMember("key_reuse_mitigation2", value2, json.GetAllocator());
-
-  value2.SetUint(m_segregation_height);
-  json.AddMember("segregation_height", value2, json.GetAllocator());
-
-  value2.SetInt(m_ignore_fractional_outputs ? 1 : 0);
-  json.AddMember("ignore_fractional_outputs", value2, json.GetAllocator());
-
-  value2.SetUint64(m_ignore_outputs_above);
-  json.AddMember("ignore_outputs_above", value2, json.GetAllocator());
-
-  value2.SetUint64(m_ignore_outputs_below);
-  json.AddMember("ignore_outputs_below", value2, json.GetAllocator());
-
-  value2.SetInt(m_track_uses ? 1 : 0);
-  json.AddMember("track_uses", value2, json.GetAllocator());
-
-  value2.SetInt(m_inactivity_lock_timeout);
-  json.AddMember("inactivity_lock_timeout", value2, json.GetAllocator());
-
-  value2.SetInt(m_setup_background_mining);
-  json.AddMember("setup_background_mining", value2, json.GetAllocator());
-
-  value2.SetUint(m_subaddress_lookahead_major);
-  json.AddMember("subaddress_lookahead_major", value2, json.GetAllocator());
-
-  value2.SetUint(m_subaddress_lookahead_minor);
-  json.AddMember("subaddress_lookahead_minor", value2, json.GetAllocator());
-
-  value2.SetInt(m_original_keys_available ? 1 : 0);
-  json.AddMember("original_keys_available", value2, json.GetAllocator());
-
-  value2.SetInt(m_export_format);
-  json.AddMember("export_format", value2, json.GetAllocator());
-
-  value2.SetUint(1);
-  json.AddMember("encrypted_secret_keys", value2, json.GetAllocator());
-
-  value.SetString(m_device_name.c_str(), m_device_name.size());
-  json.AddMember("device_name", value, json.GetAllocator());
-
-  value.SetString(m_device_derivation_path.c_str(), m_device_derivation_path.size());
-  json.AddMember("device_derivation_path", value, json.GetAllocator());
-
-  std::string original_address;
-  std::string original_view_secret_key;
-  if (m_original_keys_available)
-  {
-    original_address = get_account_address_as_str(m_nettype, false, m_original_address);
-    value.SetString(original_address.c_str(), original_address.length());
-    json.AddMember("original_address", value, json.GetAllocator());
-    original_view_secret_key = epee::string_tools::pod_to_hex(m_original_view_secret_key);
-    value.SetString(original_view_secret_key.c_str(), original_view_secret_key.length());
-    json.AddMember("original_view_secret_key", value, json.GetAllocator());
-  }
-
-  value2.SetInt(m_persistent_rpc_client_id ? 1 : 0);
-  json.AddMember("persistent_rpc_client_id", value2, json.GetAllocator());
-
-  value2.SetFloat(m_auto_mine_for_rpc_payment_threshold);
-  json.AddMember("auto_mine_for_rpc_payment", value2, json.GetAllocator());
-
-  value2.SetUint64(m_credits_target);
-  json.AddMember("credits_target", value2, json.GetAllocator());
-
-  // Serialize the JSON object
-  rapidjson::StringBuffer buffer;
-  rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-  json.Accept(writer);
-  account_data = buffer.GetString();
-
-  // Encrypt the entire JSON object.
-  std::string cipher;
-  cipher.resize(account_data.size());
-  keys_file_data.iv = crypto::rand<crypto::chacha_iv>();
-  crypto::chacha20(account_data.data(), account_data.size(), key, keys_file_data.iv, &cipher[0]);
-  keys_file_data.account_data = cipher;
-  return true;
 }
 //----------------------------------------------------------------------------------------------------
 bool wallet2::get_cache_file_data(const epee::wipeable_string& password, wallet2::cache_file_data &cache_file_data)
