@@ -5611,7 +5611,7 @@ void wallet2::trim_hashchain()
       req.height = m_blockchain.size() - 1;
       uint64_t pre_call_credits = m_rpc_payment_state.credits;
       req.client = get_client_signature();
-      r = net_utils::invoke_http_json_rpc("/json_rpc", "getblockheaderbyheight", req, res, m_http_client, rpc_timeout);
+      r = net_utils::invoke_http_json_rpc("/json_rpc", "getblockheaderbyheight", req, res, *m_http_client, rpc_timeout);
       if (r && res.status == CORE_RPC_STATUS_OK)
         check_rpc_cost("getblockheaderbyheight", res.credits, pre_call_credits, COST_PER_BLOCK_HEADER);
     }
@@ -5977,7 +5977,7 @@ void wallet2::rescan_spent()
       const boost::lock_guard<boost::recursive_mutex> lock{m_daemon_rpc_mutex};
       uint64_t pre_call_credits = m_rpc_payment_state.credits;
       req.client = get_client_signature();
-      bool r = epee::net_utils::invoke_http_json("/is_key_image_spent", req, daemon_resp, m_http_client, rpc_timeout);
+      bool r = epee::net_utils::invoke_http_json("/is_key_image_spent", req, daemon_resp, *m_http_client, rpc_timeout);
       THROW_ON_RPC_RESPONSE_ERROR(r, {}, daemon_resp, "is_key_image_spent", error::is_key_image_spent_error, get_rpc_status(daemon_resp.status));
       THROW_WALLET_EXCEPTION_IF(daemon_resp.spent_status.size() != n_outputs, error::wallet_internal_error,
         "daemon returned wrong response for is_key_image_spent, wrong amounts count = " +
