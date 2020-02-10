@@ -106,7 +106,6 @@ namespace net_utils
 
 
 	//---------------------------------------------------------------------------
-
 	namespace http
 	{
 
@@ -172,7 +171,6 @@ namespace net_utils
 			const std::string &get_host() const { return m_host_buff; };
 			const std::string &get_port() const { return m_port; };
 
-			// TODO: why must this be re-defined when it is defined in abstract_http_client
       bool set_server(const std::string& address, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect) override
       {
         return abstract_http_client::set_server(address, user, ssl_options);
