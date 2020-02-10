@@ -3681,7 +3681,7 @@ bool wallet2::store_keys(const std::string& keys_file_name, const epee::wipeable
   return true;
 }
 //----------------------------------------------------------------------------------------------------
-bool wallet2::get_keys_file_data(const epee::wipeable_string& password, bool watch_only, wallet2::keys_file_data &keys_file_data);
+bool wallet2::get_keys_file_data(const epee::wipeable_string& password, bool watch_only, wallet2::keys_file_data &keys_file_data)
 {
   std::string account_data;
   std::string multisig_signers;
@@ -5471,7 +5471,7 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
   unlock_keys_file();
   if (!load_keys(m_keys_file, password, keys_buf))
   {
-    THROW_WALLET_EXCEPTION_IF(true, error::file_read_error, m_keys_file); // TODO: woodser: error should not assume file
+    THROW_WALLET_EXCEPTION_IF(true, error::file_read_error, m_keys_file);
   }
   LOG_PRINT_L0("Loaded wallet keys file, with public address: " << m_account.get_public_address_str(m_nettype));
   if (use_fs) lock_keys_file();
@@ -5571,7 +5571,7 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
     THROW_WALLET_EXCEPTION_IF(
       m_account_public_address.m_spend_public_key != m_account.get_keys().m_account_address.m_spend_public_key ||
       m_account_public_address.m_view_public_key  != m_account.get_keys().m_account_address.m_view_public_key,
-      error::wallet_files_doesnt_correspond, m_keys_file, m_wallet_file); // TODO: wooder error should not assume file
+      error::wallet_files_doesnt_correspond, m_keys_file, m_wallet_file);
   }
 
   if (!m_persistent_rpc_client_id)
