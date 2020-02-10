@@ -3942,7 +3942,7 @@ bool wallet2::load_keys(const std::string& keys_file_name, const epee::wipeable_
   }
 
   // Decrypt the contents
-  r = ::serialization::parse_binary(use_fs ? keys_file_buf : keys_buf, keys_file_buf, keys_file_data);
+  r = ::serialization::parse_binary(use_fs ? keys_file_buf : keys_buf, keys_file_data);
   THROW_WALLET_EXCEPTION_IF(!r, error::wallet_internal_error, "internal error: failed to deserialize \"" + keys_file_name + '\"');
   crypto::chacha_key key;
   crypto::generate_chacha_key(password.data(), password.size(), key, m_kdf_rounds);
