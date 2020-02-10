@@ -26,7 +26,7 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#if defined __GNUC__ && !defined _WIN32 !defined __EMSCRIPTEN__
+#if defined __GNUC__ && !defined _WIN32 && !defined __EMSCRIPTEN__
 #define HAVE_MLOCK 1
 #endif
 
@@ -131,8 +131,8 @@ namespace epee
       return;
     #endif
 
-    //try { unlock(ptr, len); }
-    //catch (...) { /* ignore and do not propagate through the dtor */ }
+    try { unlock(ptr, len); }
+    catch (...) { /* ignore and do not propagate through the dtor */ }
   }
 
   void mlocker::lock(void *ptr, size_t len)
