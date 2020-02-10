@@ -5460,7 +5460,8 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
   prepare_file_names(wallet_);
 
   // determine if loading from file system or string buffer
-  bool use_fs = !wallet_.empty() || keys_buf.empty();
+  bool use_fs = !wallet_.empty();
+  THROW_WALLET_EXCEPTION_IF((use_fs && !keys_buf.empty()) || (!use_fs && keys_buf.empty()), error::file_read_error, "must load keys either from file system or from buffer");\
 
   boost::system::error_code e;
   if (use_fs) {
