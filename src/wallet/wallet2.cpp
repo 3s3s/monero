@@ -3928,11 +3928,11 @@ bool wallet2::load_keys(const std::string& keys_file_name, const epee::wipeable_
 {
   // determine if loading from file system or string buffer
   bool use_fs = keys_file_name != ".keys";
-  THROW_WALLET_EXCEPTION_IF((use_fs && !keys_buf.empty()) || (!use_fs && keys_buf.empty()), error::file_read_error, "must load keys either from file system or from buffer');
+  THROW_WALLET_EXCEPTION_IF((use_fs && !keys_buf.empty()) || (!use_fs && keys_buf.empty()), error::file_read_error, "must load keys either from file system or from buffer");
 
   rapidjson::Document json;
   wallet2::keys_file_data keys_file_data;
-  std::string buf;
+  std::string keys_file_buf;
   bool encrypted_secret_keys = false;
   bool r = true;
   if (use_fs)
@@ -3942,7 +3942,7 @@ bool wallet2::load_keys(const std::string& keys_file_name, const epee::wipeable_
   }
 
   // Decrypt the contents
-  r = ::serialization::parse_binary(buf, keys_file_data);
+  r = ::serialization::parse_binary(keys_file_buf, keys_file_data);
   THROW_WALLET_EXCEPTION_IF(!r, error::wallet_internal_error, "internal error: failed to deserialize \"" + keys_file_name + '\"');
   crypto::chacha_key key;
   crypto::generate_chacha_key(password.data(), password.size(), key, m_kdf_rounds);
@@ -5492,7 +5492,7 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
     bool r = true;
     if (use_fs)
     {
-      load_from_file(m_wallet_file, buf, std::numeric_limits<size_t>::max());
+      load_from_file(m_wallet_file, cache_file_buf, std::numeric_limits<size_t>::max());
       THROW_WALLET_EXCEPTION_IF(!r, error::file_read_error, m_wallet_file);
     }
 
@@ -5553,7 +5553,7 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
       LOG_PRINT_L1("Failed to load encrypted cache, trying unencrypted");
       try {
         std::stringstream iss;
-        iss << buf;
+        iss << cache_file_buf;
         boost::archive::portable_binary_iarchive ar(iss);
         ar >> *this;
       }
@@ -5563,7 +5563,7 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
         boost::filesystem::copy_file(m_wallet_file, m_wallet_file + ".unportable", boost::filesystem::copy_option::overwrite_if_exists);
         std::stringstream iss;
         iss.str("");
-        iss << buf;
+        iss << cache_file_buf;
         boost::archive::binary_iarchive ar(iss);
         ar >> *this;
       }
@@ -5791,13 +5791,15 @@ void wallet2::store_to(const std::string &path, const epee::wipeable_string &pas
   }
 }
 //----------------------------------------------------------------------------------------------------
-void wallet2::get_cache_file_data(const epee::wipeable_string &password, const std::string &cache_file_data)
+bool wallet2::get_cache_file_data(const epee::wipeable_string &password, wallet2::cache_file_data &cache_file_data)
 {
+  trim_hashchain();
+
   std::stringstream oss;
   boost::archive::portable_binary_oarchive ar(oss);
   ar << *this;
 
-  wallet2::cache_file_data cache_file_data = {};
+  cache_file_data = {};
   cache_file_data.cache_data = oss.str();
   std::string cipher;
   cipher.resize(cache_file_data.cache_data.size());
