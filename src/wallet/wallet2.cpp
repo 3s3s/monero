@@ -4256,9 +4256,9 @@ bool wallet2::load_keys(const std::string& keys_file_name, const epee::wipeable_
       // rewrite with encrypted keys, ignore errors
       if (m_ask_password == AskPasswordToDecrypt && !m_unattended && !m_watch_only)
         encrypt_keys(key);
-      bool saved_ret = store_keys(keys_file_name, password, m_watch_only);
       if (use_fs)
       {
+        bool saved_ret = store_keys(keys_file_name, password, m_watch_only);
         if (!saved_ret)
         {
           // just moan a bit, but not fatal
