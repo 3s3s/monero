@@ -46,6 +46,10 @@ public:
     data.clear();
     return true;
   }
+  void set_ssl(epee::net_utils::ssl_options_t ssl_options) { }
+  bool is_connected(bool *ssl = NULL) { return true; }
+  uint64_t get_bytes_sent() const  { return 0; }
+  uint64_t get_bytes_received() const { return 0; }
 
   void set_test_data(const std::string &s) { data = s; }
 
