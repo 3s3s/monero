@@ -715,13 +715,12 @@ private:
      */
     void store_to(const std::string &path, const epee::wipeable_string &password);
     /*!
-     * \brief get_keys_file_data    Get wallet keys data which can be stored to a wallet file.
-     * \param  password             Password of the encrypted wallet buffer (TODO: probably better save the password in the wallet object?)
-     * \param  watch_only           true to include only view key, false to include both spend and view keys
-     * \param  keys_file_data       Loaded with the wallet keys data
-     * \return                      Encrypted wallet keys data which can be stored to a wallet file
+     * \brief get_keys_file_data  Get wallet keys data which can be stored to a wallet file.
+     * \param password            Password of the encrypted wallet buffer (TODO: probably better save the password in the wallet object?)
+     * \param watch_only          true to include only view key, false to include both spend and view keys
+     * \return                    Encrypted wallet keys data which can be stored to a wallet file
      */
-    bool get_keys_file_data(const epee::wipeable_string& password, bool watch_only, wallet2::keys_file_data &keys_file_data);
+    boost::optional<wallet2::keys_file_data> get_keys_file_data(const epee::wipeable_string& password, bool watch_only);
     /*!
      * \brief get_cache_file_data   Get wallet cache data which can be stored to a wallet file.
      * \param password              Password to protect the wallet cache data (TODO: probably better save the password in the wallet object?)
