@@ -3681,7 +3681,7 @@ bool wallet2::store_keys(const std::string& keys_file_name, const epee::wipeable
   return true;
 }
 //----------------------------------------------------------------------------------------------------
-bool wallet2::get_keys_file_data(const epee::wipeable_string& password, bool watch_only, wallet2::keys_file_data &keys_file_data)
+boost::optional<keys_file_data> wallet2::get_keys_file_data(const epee::wipeable_string& password, bool watch_only)
 {
   std::string account_data;
   std::string multisig_signers;
