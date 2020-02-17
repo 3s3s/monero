@@ -1513,7 +1513,7 @@ private:
     std::string m_wallet_file;
     std::string m_keys_file;
     std::string m_mms_file;
-    std::shared_ptr<epee::net_utils::http::abstract_http_client> m_http_client;
+    const std::shared_ptr<epee::net_utils::http::abstract_http_client> m_http_client;
     hashchain m_blockchain;
     std::unordered_map<crypto::hash, unconfirmed_transfer_details> m_unconfirmed_txs;
     std::unordered_map<crypto::hash, confirmed_transfer_details> m_confirmed_txs;
