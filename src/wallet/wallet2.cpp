@@ -3924,26 +3924,53 @@ void wallet2::change_password(const std::string &filename, const epee::wipeable_
  * \param keys_file_name Name of wallet file
  * \param password       Password of wallet file
  */
-bool wallet2::load_keys(const std::string& keys_file_name, const epee::wipeable_string& password, const std::string& keys_buf)
+bool wallet2::load_keys(const std::string& keys_file_name, const epee::wipeable_string& password)
 {
-  // determine if loading from file system or string buffer
-  bool use_fs = keys_file_name != ".keys";
-  THROW_WALLET_EXCEPTION_IF((use_fs && !keys_buf.empty()) || (!use_fs && keys_buf.empty()), error::file_read_error, "must load keys either from file system or from buffer");
-
-  rapidjson::Document json;
-  wallet2::keys_file_data keys_file_data;
   std::string keys_file_buf;
-  bool encrypted_secret_keys = false;
-  bool r = true;
-  if (use_fs)
-  {
-    r = load_from_file(keys_file_name, keys_file_buf);
-    THROW_WALLET_EXCEPTION_IF(!r, error::file_read_error, keys_file_name);
+  bool r = load_from_file(keys_file_name, keys_file_buf);
+  THROW_WALLET_EXCEPTION_IF(!r, error::file_read_error, keys_file_name);
+
+  // Load keys from buffer
+  boost::optional<crypto::chacha_key> keys_to_encrypt;
+  try {
+    r = wallet2::load_keys_buf(keys_file_buf, password, keys_to_encrypt);
+  } catch (const std::exception& e) {
+    std::size_t found = string(e.what()).find("failed to deserialize keys buffer");
+    THROW_WALLET_EXCEPTION_IF(found != std::string::npos, error::wallet_internal_error, "internal error: failed to deserialize \"" + keys_file_name + '\"');
+    throw e;
   }
 
+  // Rewrite with encrypted keys if unencrypted, ignore errors
+  if (r && keys_to_encrypt != boost::none)
+  {
+    if (m_ask_password == AskPasswordToDecrypt && !m_unattended && !m_watch_only)
+      encrypt_keys(keys_to_encrypt.get());
+    bool saved_ret = store_keys(keys_file_name, password, m_watch_only);
+    if (!saved_ret)
+    {
+      // just moan a bit, but not fatal
+      MERROR("Error saving keys file with encrypted keys, not fatal");
+    }
+    if (m_ask_password == AskPasswordToDecrypt && !m_unattended && !m_watch_only)
+      decrypt_keys(keys_to_encrypt.get());
+    m_keys_file_locker.reset();
+  }
+  return r;
+}
+//----------------------------------------------------------------------------------------------------
+bool wallet2::load_keys_buf(const std::string& keys_buf, const epee::wipeable_string& password) {
+  boost::optional<crypto::chacha_key> keys_to_encrypt;
+  return wallet2::load_keys_buf(keys_buf, password, keys_to_encrypt);
+}
+//----------------------------------------------------------------------------------------------------
+bool wallet2::load_keys_buf(const std::string& keys_buf, const epee::wipeable_string& password, boost::optional<crypto::chacha_key>& keys_to_encrypt) {
+
   // Decrypt the contents
-  r = ::serialization::parse_binary(use_fs ? keys_file_buf : keys_buf, keys_file_data);
-  THROW_WALLET_EXCEPTION_IF(!r, error::wallet_internal_error, "internal error: failed to deserialize \"" + keys_file_name + '\"');
+  rapidjson::Document json;
+  wallet2::keys_file_data keys_file_data;
+  bool encrypted_secret_keys = false;
+  bool r = ::serialization::parse_binary(keys_buf, keys_file_data);
+  THROW_WALLET_EXCEPTION_IF(!r, error::wallet_internal_error, "internal error: failed to deserialize keys buffer");
   crypto::chacha_key key;
   crypto::generate_chacha_key(password.data(), password.size(), key, m_kdf_rounds);
   std::string account_data;
@@ -4218,8 +4245,8 @@ bool wallet2::load_keys(const std::string& keys_file_name, const epee::wipeable_
   }
   else
   {
-      THROW_WALLET_EXCEPTION(error::wallet_internal_error, "invalid password");
-      return false;
+    THROW_WALLET_EXCEPTION(error::wallet_internal_error, "invalid password");
+    return false;
   }
 
   r = epee::serialization::load_t_from_binary(m_account, account_data);
@@ -4253,27 +4280,13 @@ bool wallet2::load_keys(const std::string& keys_file_name, const epee::wipeable_
     }
     else
     {
-      // rewrite with encrypted keys, ignore errors
-      if (m_ask_password == AskPasswordToDecrypt && !m_unattended && !m_watch_only)
-        encrypt_keys(key);
-      if (use_fs)
-      {
-        bool saved_ret = store_keys(keys_file_name, password, m_watch_only);
-        if (!saved_ret)
-        {
-          // just moan a bit, but not fatal
-          MERROR("Error saving keys file with encrypted keys, not fatal");
-        }
-      }
-      if (m_ask_password == AskPasswordToDecrypt && !m_unattended && !m_watch_only)
-        decrypt_keys(key);
-      m_keys_file_locker.reset();
+      keys_to_encrypt = key;
     }
   }
   const cryptonote::account_keys& keys = m_account.get_keys();
   hw::device &hwdev = m_account.get_device();
   r = r && hwdev.verify_keys(keys.m_view_secret_key,  keys.m_account_address.m_view_public_key);
-  if(!m_watch_only && !m_multisig && hwdev.device_protocol() != hw::device::PROTOCOL_COLD)
+  if (!m_watch_only && !m_multisig && hwdev.device_protocol() != hw::device::PROTOCOL_COLD)
     r = r && hwdev.verify_keys(keys.m_spend_secret_key, keys.m_account_address.m_spend_public_key);
   THROW_WALLET_EXCEPTION_IF(!r, error::invalid_password);
 
@@ -5464,27 +5477,32 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
   THROW_WALLET_EXCEPTION_IF((use_fs && !keys_buf.empty()) || (!use_fs && keys_buf.empty()), error::file_read_error, "must load keys either from file system or from buffer");\
 
   boost::system::error_code e;
-  if (use_fs) {
+  if (use_fs)
+  {
     bool exists = boost::filesystem::exists(m_keys_file, e);
     THROW_WALLET_EXCEPTION_IF(e || !exists, error::file_not_found, m_keys_file);
     lock_keys_file();
     THROW_WALLET_EXCEPTION_IF(!is_keys_file_locked(), error::wallet_internal_error, "internal error: \"" + m_keys_file + "\" is opened by another wallet program");
-  }
 
-  // this temporary unlocking is necessary for Windows (otherwise the file couldn't be loaded).
-  unlock_keys_file();
-  if (!load_keys(m_keys_file, password, keys_buf))
-  {
-    THROW_WALLET_EXCEPTION_IF(true, error::file_read_error, m_keys_file);
+    // this temporary unlocking is necessary for Windows (otherwise the file couldn't be loaded).
+    unlock_keys_file();
+    if (!load_keys(m_keys_file, password))
+    {
+      THROW_WALLET_EXCEPTION_IF(true, error::file_read_error, m_keys_file);
+    }
+    LOG_PRINT_L0("Loaded wallet keys file, with public address: " << m_account.get_public_address_str(m_nettype));
+    lock_keys_file();
   }
-  LOG_PRINT_L0("Loaded wallet keys file, with public address: " << m_account.get_public_address_str(m_nettype));
-  if (use_fs) lock_keys_file();
+  else if (!load_keys_buf(keys_buf, password))
+  {
+    THROW_WALLET_EXCEPTION_IF(true, error::file_read_error, "failed to load keys from buffer");
+  }
 
   wallet_keys_unlocker unlocker(*this, m_ask_password == AskPasswordToDecrypt && !m_unattended && !m_watch_only, password);
 
   //keys loaded ok!
   //try to load wallet file. but even if we failed, it is not big problem
-  if(use_fs && (!boost::filesystem::exists(m_wallet_file, e) || e))
+  if (use_fs && (!boost::filesystem::exists(m_wallet_file, e) || e))
   {
     LOG_PRINT_L0("file not found: " << m_wallet_file << ", starting with empty blockchain");
     m_account_public_address = m_account.get_keys().m_account_address;
@@ -5611,7 +5629,8 @@ void wallet2::load(const std::string& wallet_, const epee::wipeable_string& pass
   
   try
   {
-    if (use_fs) m_message_store.read_from_file(get_multisig_wallet_state(), m_mms_file);
+    if (use_fs)
+      m_message_store.read_from_file(get_multisig_wallet_state(), m_mms_file);
   }
   catch (const std::exception &e)
   {
