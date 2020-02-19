@@ -1323,7 +1323,11 @@ bool wallet2::init(std::string daemon_address, boost::optional<epee::net_utils::
   m_is_initialized = true;
   m_upper_transaction_weight_limit = upper_transaction_weight_limit;
   if (proxy != boost::asio::ip::tcp::endpoint{})
-    m_http_client->set_connector(net::socks::connector{std::move(proxy)});
+  {
+    shared_ptr<epee::net_utils::http::http_simple_client> http_simple_client = dynamic_pointer_cast<epee::net_utils::http::http_simple_client>(m_http_client);
+    CHECK_AND_ASSERT_MES(http_simple_client != nullptr, false, "http_simple_client must be used to set proxy");
+    http_simple_client->set_connector(net::socks::connector{std::move(proxy)});
+  }
   return set_daemon(daemon_address, daemon_login, trusted_daemon, std::move(ssl_options));
 }
 //----------------------------------------------------------------------------------------------------

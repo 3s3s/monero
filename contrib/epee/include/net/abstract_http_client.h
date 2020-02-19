@@ -159,8 +159,6 @@ namespace epee
         }
         virtual void set_server(std::string host, std::string port, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect) = 0;
         virtual void set_auto_connect(bool auto_connect) = 0;
-        template<typename F>
-        void set_connector(F connector) {}  // TODO woodser: set_connector cannot be virtual because of template, remove from abstract?
         virtual bool connect(std::chrono::milliseconds timeout) = 0;
         virtual bool disconnect() = 0;
         virtual bool is_connected(bool *ssl = NULL) = 0;
