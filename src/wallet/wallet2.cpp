@@ -3708,7 +3708,7 @@ boost::optional<wallet2::keys_file_data> wallet2::get_keys_file_data(const epee:
 
   bool r = epee::serialization::store_t_to_binary(account, account_data);
   CHECK_AND_ASSERT_MES(r, boost::none, "failed to serialize wallet keys");
-  boost::optional<wallet2::keys_file_data> keys_file_data = {};
+  boost::optional<wallet2::keys_file_data> keys_file_data = (wallet2::keys_file_data) {};
 
   // Create a JSON object with "key_data" and "seed_language" as keys.
   rapidjson::Document json;
