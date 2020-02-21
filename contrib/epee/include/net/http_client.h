@@ -180,9 +180,9 @@ namespace net_utils
 			{
 				CRITICAL_REGION_LOCAL(m_lock);
 				disconnect();
-				m_host_buff = std::move(host);
-				m_port = std::move(port);
-				m_auth = user ? http_client_auth{std::move(*user)} : http_client_auth{};
+        m_host_buff = std::move(host);
+        m_port = std::move(port);
+        m_auth = user ? http_client_auth{std::move(*user)} : http_client_auth{};
         m_net_client.set_ssl(std::move(ssl_options));
 			}
 
