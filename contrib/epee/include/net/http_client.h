@@ -182,8 +182,8 @@ namespace net_utils
 				disconnect();
 				m_host_buff = std::move(host);
 				m_port = std::move(port);
-        m_auth = user ? http_client_auth{std::move(*user)} : http_client_auth{};
-				m_net_client.set_ssl(std::move(ssl_options));
+				m_auth = user ? http_client_auth{std::move(*user)} : http_client_auth{};
+        m_net_client.set_ssl(std::move(ssl_options));
 			}
 
 			void set_auto_connect(bool auto_connect) override
