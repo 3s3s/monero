@@ -269,7 +269,7 @@ private:
     static bool verify_password(const std::string& keys_file_name, const epee::wipeable_string& password, bool no_spend_key, hw::device &hwdev, uint64_t kdf_rounds);
     static bool query_device(hw::device::device_type& device_type, const std::string& keys_file_name, const epee::wipeable_string& password, uint64_t kdf_rounds = 1);
 
-    wallet2(cryptonote::network_type nettype = cryptonote::MAINNET, uint64_t kdf_rounds = 1, bool unattended = false, std::shared_ptr<epee::net_utils::http::abstract_http_client> http_client = std::make_shared<epee::net_utils::http::http_simple_client>());
+    wallet2(cryptonote::network_type nettype = cryptonote::MAINNET, uint64_t kdf_rounds = 1, bool unattended = false, std::unique_ptr<epee::net_utils::http::abstract_http_client> http_client = std::unique_ptr<epee::net_utils::http::http_simple_client>(new epee::net_utils::http::http_simple_client()));
     ~wallet2();
 
     struct multisig_info
@@ -1518,7 +1518,7 @@ private:
     std::string m_wallet_file;
     std::string m_keys_file;
     std::string m_mms_file;
-    const std::shared_ptr<epee::net_utils::http::abstract_http_client> m_http_client;
+    const std::unique_ptr<epee::net_utils::http::abstract_http_client> m_http_client;
     hashchain m_blockchain;
     std::unordered_map<crypto::hash, unconfirmed_transfer_details> m_unconfirmed_txs;
     std::unordered_map<crypto::hash, confirmed_transfer_details> m_confirmed_txs;
