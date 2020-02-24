@@ -1124,16 +1124,8 @@ void wallet_device_callback::on_progress(const hw::device_progress& event)
     wallet->on_device_progress(event);
 }
 
-// TODO: this will fail in emscripten
-epee::net_utils::http::http_simple_client wallet2::DEFAULT_HTTP_CLIENT;
-
-wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended) : wallet2::wallet2(DEFAULT_HTTP_CLIENT, nettype, kdf_rounds, unattended)
-{
-  // nothing to construct
-}
-
-wallet2::wallet2(epee::net_utils::http::abstract_http_client& http_client, network_type nettype, uint64_t kdf_rounds, bool unattended):
-  m_http_client(http_client),
+wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended, std::shared_ptr<epee::net_utils::http::abstract_http_client> http_client):
+  m_http_client(*http_client),
   m_multisig_rescan_info(NULL),
   m_multisig_rescan_k(NULL),
   m_upper_transaction_weight_limit(0),
