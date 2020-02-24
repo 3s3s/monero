@@ -110,7 +110,7 @@ namespace net_utils
 	{
 
 		template<typename net_client_type>
-    class http_simple_client_template: public i_target_handler, public abstract_http_client
+    class http_simple_client_template final : public i_target_handler, public abstract_http_client
 		{
 		private:
 			enum reciev_machine_state
@@ -171,10 +171,7 @@ namespace net_utils
 			const std::string &get_host() const { return m_host_buff; };
 			const std::string &get_port() const { return m_port; };
 
-      bool set_server(const std::string& address, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect) override
-      {
-        return abstract_http_client::set_server(address, user, ssl_options);
-      }
+			using abstract_http_client::set_server;
 
 			virtual void set_server(std::string host, std::string port, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect) override
 			{
