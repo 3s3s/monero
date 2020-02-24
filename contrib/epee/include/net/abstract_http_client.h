@@ -13,17 +13,16 @@ namespace epee
 {
   namespace net_utils
   {
-    //---------------------------------------------------------------------------
     inline const char* get_hex_vals()
     {
-      static const char hexVals[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+      static constexpr const char hexVals[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
       return hexVals;
     }
 
     inline const char* get_unsave_chars()
     {
-      //static char unsave_chars[] = "\"<>%\\^[]`+$,@:;/!#?=&";
-      static const char unsave_chars[] = "\"<>%\\^[]`+$,@:;!#&";
+      //static constexpr char unsave_chars[] = "\"<>%\\^[]`+$,@:;/!#?=&";
+      static constexpr const char unsave_chars[] = "\"<>%\\^[]`+$,@:;!#&";
       return unsave_chars;
     }
 
@@ -45,7 +44,7 @@ namespace epee
       {
       public:
         abstract_http_client() {}
-        ~abstract_http_client() {}
+        virtual ~abstract_http_client() {}
         virtual bool set_server(const std::string& address, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect)
         {
           http::url_content parsed{};
