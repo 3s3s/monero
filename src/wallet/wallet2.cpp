@@ -1124,7 +1124,7 @@ void wallet_device_callback::on_progress(const hw::device_progress& event)
     wallet->on_device_progress(event);
 }
 
-wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended, std::shared_ptr<epee::net_utils::http::abstract_http_client> http_client):
+wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended, std::unique_ptr<epee::net_utils::http::abstract_http_client> http_client):
   m_http_client(std::move(http_client)),
   m_multisig_rescan_info(NULL),
   m_multisig_rescan_k(NULL),
@@ -1324,7 +1324,8 @@ bool wallet2::init(std::string daemon_address, boost::optional<epee::net_utils::
   m_upper_transaction_weight_limit = upper_transaction_weight_limit;
   if (proxy != boost::asio::ip::tcp::endpoint{})
   {
-    shared_ptr<epee::net_utils::http::http_simple_client> http_simple_client = dynamic_pointer_cast<epee::net_utils::http::http_simple_client>(m_http_client);
+    epee::net_utils::http::abstract_http_client* abstract_http_client = m_http_client.get();
+    epee::net_utils::http::http_simple_client* http_simple_client = dynamic_cast<epee::net_utils::http::http_simple_client*>(abstract_http_client);
     CHECK_AND_ASSERT_MES(http_simple_client != nullptr, false, "http_simple_client must be used to set proxy");
     http_simple_client->set_connector(net::socks::connector{std::move(proxy)});
   }
