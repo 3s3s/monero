@@ -664,12 +664,13 @@ namespace cryptonote
     bl.timestamp = 0;
     bl.nonce = nonce;
 
-    // TODO: miner cannot run in emscripten.  genesis nonce is set from config in wallet2::generate_genesis().  is this call necessary at all?
-    #if !defined __EMSCRIPTEN__
-      miner::find_nonce_for_given_block([](const cryptonote::block &b, uint64_t height, unsigned int threads, crypto::hash &hash){
-        return cryptonote::get_block_longhash(NULL, b, hash, height, threads);
-      }, bl, 1, 0);
+    #if defined __EMSCRIPTEN__  // miner not accessible in webassembly
+      return false;
     #endif
+
+    miner::find_nonce_for_given_block([](const cryptonote::block &b, uint64_t height, unsigned int threads, crypto::hash &hash){
+      return cryptonote::get_block_longhash(NULL, b, hash, height, threads);
+    }, bl, 1, 0);
     bl.invalidate_hashes();
     return true;
   }
