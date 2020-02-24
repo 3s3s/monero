@@ -110,7 +110,7 @@ namespace net_utils
 	{
 
 		template<typename net_client_type>
-    class http_simple_client_template final : public i_target_handler, public abstract_http_client
+    class http_simple_client_template : public i_target_handler, public abstract_http_client
 		{
 		private:
 			enum reciev_machine_state
