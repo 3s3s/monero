@@ -724,10 +724,9 @@ private:
     /*!
      * \brief get_cache_file_data   Get wallet cache data which can be stored to a wallet file.
      * \param password              Password to protect the wallet cache data (TODO: probably better save the password in the wallet object?)
-     * \param cache_file_data       Loaded with the wallet cache data
      * \return                      Encrypted wallet cache data which can be stored to a wallet file
      */
-    bool get_cache_file_data(const epee::wipeable_string& password, wallet2::cache_file_data &cache_file_data);
+    boost::optional<wallet2::cache_file_data> get_cache_file_data(const epee::wipeable_string& password);
 
     std::string path() const;
 
