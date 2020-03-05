@@ -5744,7 +5744,7 @@ void wallet2::store_to(const std::string &path, const epee::wipeable_string &pas
 
   // get wallet cache data
   boost::optional<wallet2::cache_file_data> cache_file_data = get_cache_file_data(password);
-  THROW_WALLET_EXCEPTION_IF(cache_file_data != boost::none, error::wallet_internal_error, "failed to generate wallet cache data");
+  THROW_WALLET_EXCEPTION_IF(cache_file_data == boost::none, error::wallet_internal_error, "failed to generate wallet cache data");
 
   const std::string new_file = same_file ? m_wallet_file + ".new" : path;
   const std::string old_file = m_wallet_file;
