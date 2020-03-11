@@ -26,7 +26,7 @@
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#if defined __GNUC__ && !defined _WIN32 && !defined __EMSCRIPTEN__
+#if defined __GNUC__ && !defined _WIN32
 #define HAVE_MLOCK 1
 #endif
 
@@ -106,10 +106,6 @@ namespace epee
 
   size_t mlocker::get_page_size()
   {
-#if defined __EMSCRIPTEN__
-    return 4096;
-#endif
-
     CRITICAL_REGION_LOCAL(mutex());
     if (page_size == 0)
       page_size = query_page_size();
@@ -118,19 +114,11 @@ namespace epee
 
   mlocker::mlocker(void *ptr, size_t len): ptr(ptr), len(len)
   {
-#if defined __EMSCRIPTEN__
-    return;
-#endif
-
     lock(ptr, len);
   }
 
   mlocker::~mlocker()
   {
-#if defined __EMSCRIPTEN__
-    return;
-#endif
-
     try { unlock(ptr, len); }
     catch (...) { /* ignore and do not propagate through the dtor */ }
   }
@@ -142,10 +130,6 @@ namespace epee
     size_t page_size = get_page_size();
     if (page_size == 0)
       return;
-
-#if defined __EMSCRIPTEN__
-    return;
-#endif
 
     CRITICAL_REGION_LOCAL(mutex());
     const size_t first = ((uintptr_t)ptr) / page_size;
@@ -164,11 +148,6 @@ namespace epee
     size_t page_size = get_page_size();
     if (page_size == 0)
       return;
-
-#if defined __EMSCRIPTEN__
-    return;
-#endif
-
     CRITICAL_REGION_LOCAL(mutex());
     const size_t first = ((uintptr_t)ptr) / page_size;
     const size_t last = (((uintptr_t)ptr) + len - 1) / page_size;
@@ -181,30 +160,18 @@ namespace epee
 
   size_t mlocker::get_num_locked_pages()
   {
-#if defined __EMSCRIPTEN__
-    return 0;
-#endif
-
     CRITICAL_REGION_LOCAL(mutex());
     return map().size();
   }
 
   size_t mlocker::get_num_locked_objects()
   {
-#if defined __EMSCRIPTEN__
-    return 0;
-#endif
-
     CRITICAL_REGION_LOCAL(mutex());
     return num_locked_objects;
   }
 
   void mlocker::lock_page(size_t page)
   {
-#if defined __EMSCRIPTEN__
-    return;
-#endif
-
     std::pair<std::map<size_t, unsigned int>::iterator, bool> p = map().insert(std::make_pair(page, 1));
     if (p.second)
     {
@@ -218,10 +185,6 @@ namespace epee
 
   void mlocker::unlock_page(size_t page)
   {
-#if defined __EMSCRIPTEN__
-    return;
-#endif
-
     std::map<size_t, unsigned int>::iterator i = map().find(page);
     if (i == map().end())
     {
