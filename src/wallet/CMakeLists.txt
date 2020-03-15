@@ -38,6 +38,7 @@ set(wallet_sources
   message_store.cpp
   message_transporter.cpp
   wallet_rpc_payments.cpp
+  multiuser_txs.cpp
 )
 
 set(wallet_private_headers

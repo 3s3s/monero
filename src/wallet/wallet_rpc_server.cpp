@@ -949,7 +949,7 @@ namespace tools
     {
       uint64_t mixin = m_wallet->adjust_mixin(req.ring_size ? req.ring_size - 1 : 0);
       uint32_t priority = m_wallet->adjust_priority(req.priority);
-      std::vector<wallet2::pending_tx> ptx_vector = m_wallet->create_transactions_2(dsts, mixin, req.unlock_time, priority, extra, req.account_index, req.subaddr_indices);
+      std::vector<wallet2::pending_tx> ptx_vector = m_wallet->create_transactions_2(dsts, mixin, req.unlock_time, priority, extra, req.account_index, req.subaddr_indices, boost::none, NULL);
 
       if (ptx_vector.empty())
       {
@@ -968,6 +968,145 @@ namespace tools
 
       return fill_response(ptx_vector, req.get_tx_key, res.tx_key, res.amount, res.fee, res.weight, res.multisig_txset, res.unsigned_txset, req.do_not_relay,
           res.tx_hash, req.get_tx_hex, res.tx_blob, req.get_tx_metadata, res.tx_metadata, er);
+    }
+    catch (const std::exception& e)
+    {
+      handle_rpc_exception(std::current_exception(), er, WALLET_RPC_ERROR_CODE_GENERIC_TRANSFER_ERROR);
+      return false;
+    }
+    return true;
+  }
+  //------------------------------------------------------------------------------------------------------------------------------
+  bool wallet_rpc_server::on_transfer_multiuser(const wallet_rpc::COMMAND_RPC_TRANSFER_MULTIUSER::request& req, wallet_rpc::COMMAND_RPC_TRANSFER_MULTIUSER::response& res, epee::json_rpc::error& er, const connection_context *ctx)
+  {
+    std::vector<cryptonote::tx_destination_entry> dsts;
+    std::vector<cryptonote::tx_destination_entry> other_dsts;
+    std::vector<uint8_t> extra, dummy_extra;
+    wallet2::multiuser_tx_set multiuser_txs;
+    rct::multiuser_out muout;
+    boost::optional<crypto::secret_key> tx_key;
+
+    LOG_PRINT_L3("on_transfer_multiuser starts");
+    if (!m_wallet) return not_open(er);
+    if (m_restricted)
+    {
+      er.code = WALLET_RPC_ERROR_CODE_DENIED;
+      er.message = "Command unavailable in restricted mode.";
+      return false;
+    }
+    if (m_wallet->multisig())
+    {
+      er.code = WALLET_RPC_ERROR_CODE_NOT_MULTISIG;
+      er.message = "Command unavailable for multisig wallets";
+      return false;
+    }
+
+    // we can call wither with key image (and optional address), or without, these are incompatible for now
+    if (!req.key_image.empty())
+    {
+      if (!req.destinations.empty())
+      {
+        er.code = WALLET_RPC_ERROR_CODE_MULTIUSER_INCOMPATIBLE;
+        er.message = "When key image and address are supplied, destinations should be empty";
+        return false;
+      }
+    }
+
+    // validate the transfer requested and populate dsts & extra
+    if (!req.key_image.empty())
+    {
+      std::list<wallet_rpc::transfer_destination> destination;
+      destination.push_back(wallet_rpc::transfer_destination());
+      destination.back().amount = 0;
+      destination.back().address = req.address;
+      if (!validate_transfer(destination, "", dsts, extra, true, er))
+        return false;
+    }
+    else
+    {
+      if (!validate_transfer(req.destinations, req.payment_id, dsts, extra, true, er))
+        return false;
+    }
+    if (!validate_transfer(req.other_destinations, "", other_dsts, dummy_extra, false, er))
+      return false;
+
+    if (!req.multiuser_data.empty())
+    {
+      std::string multiuser_data;
+      if (!epee::string_tools::parse_hexstr_to_binbuff(req.multiuser_data, multiuser_data))
+      {
+        er.code = WALLET_RPC_ERROR_CODE_BAD_HEX;
+        er.message = "Failed to parse hex.";
+        return false;
+      }
+      if (!m_wallet->load_multiuser_tx(multiuser_data, multiuser_txs, [](const wallet2::multiuser_tx_set&) { return true; }))
+      {
+        er.code = WALLET_RPC_ERROR_CODE_BAD_MULTIUSER_DATA;
+        er.message = "Failed to parse multiuser data";
+        return false;
+      }
+      tx_key = multiuser_txs.m_ptx.tx_key;
+      muout.output_offset = multiuser_txs.m_ptx.tx.vout.size();
+    }
+    else
+    {
+      muout.output_offset = 0;
+    }
+
+    try
+    {
+      uint64_t mixin = m_wallet->adjust_mixin(req.ring_size ? req.ring_size - 1 : 0);
+      uint32_t priority = m_wallet->adjust_priority(req.priority);
+      std::vector<wallet2::pending_tx> ptx_vector;
+
+      if (!req.key_image.empty())
+      {
+        crypto::key_image ki;
+        if (!epee::string_tools::hex_to_pod(req.key_image, ki))
+        {
+          er.code = WALLET_RPC_ERROR_CODE_WRONG_KEY_IMAGE;
+          er.message = "failed to parse key image";
+          return false;
+        }
+        ptx_vector = m_wallet->create_transactions_single(ki, dsts[0].addr, dsts[0].is_subaddress, 1, mixin, req.unlock_time, priority, extra, tx_key, &muout);
+      }
+      else
+        ptx_vector = m_wallet->create_transactions_2(dsts, mixin, req.unlock_time, priority, extra, req.account_index, req.subaddr_indices, tx_key, &muout);
+
+      if (ptx_vector.empty())
+      {
+        er.code = WALLET_RPC_ERROR_CODE_TX_NOT_POSSIBLE;
+        er.message = "No transaction created";
+        return false;
+      }
+
+      // reject proposed transactions if there are more than one, multiuser txes can only be a single tx
+      if (ptx_vector.size() != 1)
+      {
+        er.code = WALLET_RPC_ERROR_CODE_TX_TOO_LARGE;
+        er.message = "Transaction would be too large. A multiuser transfer must consist of a single transaction";
+        return false;
+      }
+
+      const wallet2::pending_tx &ptx = ptx_vector.front();
+
+      if (!m_wallet->merge_multiuser(multiuser_txs, ptx, dsts, other_dsts, muout, req.disclose))
+      {
+        er.code = WALLET_RPC_ERROR_CODE_MULTIUSER_CREATION;
+        er.message = "Failed to merge multiuser transaction";
+        return false;
+      }
+
+      if (req.get_tx_key)
+      {
+        epee::wipeable_string s = epee::to_hex::wipeable_string(ptx.tx_key);
+        for (const crypto::secret_key& additional_tx_key : ptx.additional_tx_keys)
+          s += epee::to_hex::wipeable_string(additional_tx_key);
+        res.tx_key = std::string(s.data(), s.size());
+      }
+      res.multiuser_data = epee::string_tools::buff_to_hex_nodelimer(m_wallet->save_multiuser_tx(multiuser_txs));
+      res.fee = ptx.fee;
+      m_wallet->set_spent(ptx);
     }
     catch (const std::exception& e)
     {
@@ -1002,7 +1141,7 @@ namespace tools
       uint64_t mixin = m_wallet->adjust_mixin(req.ring_size ? req.ring_size - 1 : 0);
       uint32_t priority = m_wallet->adjust_priority(req.priority);
       LOG_PRINT_L2("on_transfer_split calling create_transactions_2");
-      std::vector<wallet2::pending_tx> ptx_vector = m_wallet->create_transactions_2(dsts, mixin, req.unlock_time, priority, extra, req.account_index, req.subaddr_indices);
+      std::vector<wallet2::pending_tx> ptx_vector = m_wallet->create_transactions_2(dsts, mixin, req.unlock_time, priority, extra, req.account_index, req.subaddr_indices, boost::none, NULL);
       LOG_PRINT_L2("on_transfer_split called create_transactions_2");
 
       if (ptx_vector.empty())
@@ -1486,7 +1625,7 @@ namespace tools
     {
       uint64_t mixin = m_wallet->adjust_mixin(req.ring_size ? req.ring_size - 1 : 0);
       uint32_t priority = m_wallet->adjust_priority(req.priority);
-      std::vector<wallet2::pending_tx> ptx_vector = m_wallet->create_transactions_single(ki, dsts[0].addr, dsts[0].is_subaddress, req.outputs, mixin, req.unlock_time, priority, extra);
+      std::vector<wallet2::pending_tx> ptx_vector = m_wallet->create_transactions_single(ki, dsts[0].addr, dsts[0].is_subaddress, req.outputs, mixin, req.unlock_time, priority, extra, boost::none, NULL);
 
       if (ptx_vector.empty())
       {
@@ -4119,6 +4258,114 @@ namespace tools
       return false;
     }
 
+    return true;
+  }
+  //------------------------------------------------------------------------------------------------------------------------------
+  bool wallet_rpc_server::on_sign_multiuser(const wallet_rpc::COMMAND_RPC_SIGN_MULTIUSER::request& req, wallet_rpc::COMMAND_RPC_SIGN_MULTIUSER::response& res, epee::json_rpc::error& er, const connection_context *ctx)
+  {
+    if (!m_wallet) return not_open(er);
+    if (m_restricted)
+    {
+      er.code = WALLET_RPC_ERROR_CODE_DENIED;
+      er.message = "Command unavailable in restricted mode.";
+      return false;
+    }
+    if (m_wallet->multisig())
+    {
+      er.code = WALLET_RPC_ERROR_CODE_NOT_MULTISIG;
+      er.message = "Command unavailable for multisig wallets";
+      return false;
+    }
+
+    std::string multiuser_data;
+    if (!epee::string_tools::parse_hexstr_to_binbuff(req.multiuser_data, multiuser_data))
+    {
+      er.code = WALLET_RPC_ERROR_CODE_BAD_HEX;
+      er.message = "Failed to parse hex.";
+      return false;
+    }
+    tools::wallet2::multiuser_tx_set multiuser_txs;
+    if (!m_wallet->load_multiuser_tx(multiuser_data, multiuser_txs, [](const tools::wallet2::multiuser_tx_set &txs) { return true; }))
+    {
+      er.code = WALLET_RPC_ERROR_CODE_BAD_MULTIUSER_DATA;
+      er.message = "Failed to parse multiuser data";
+      return false;
+    }
+    try
+    {
+      if (!m_wallet->sign_multiuser_tx(multiuser_txs))
+      {
+        er.code = WALLET_RPC_ERROR_CODE_MULTIUSER_CREATION;
+        er.message = "Failed to sign multiuser data";
+        return false;
+      }
+    }
+    catch (const std::exception &e)
+    {
+      er.code = WALLET_RPC_ERROR_CODE_MULTIUSER_CREATION;
+      er.message = "Failed to sign multiuser data";
+      return false;
+    }
+    multiuser_data = epee::string_tools::buff_to_hex_nodelimer(m_wallet->save_multiuser_tx(multiuser_txs));
+    if (multiuser_data.empty())
+    {
+      er.code = WALLET_RPC_ERROR_CODE_MULTIUSER_CREATION;
+      er.message = "Failed to save multiuser data";
+      return false;
+    }
+    res.multiuser_data = std::move(multiuser_data);
+    return true;
+  }
+  //------------------------------------------------------------------------------------------------------------------------------
+  bool wallet_rpc_server::on_submit_multiuser(const wallet_rpc::COMMAND_RPC_SUBMIT_MULTIUSER::request& req, wallet_rpc::COMMAND_RPC_SUBMIT_MULTIUSER::response& res, epee::json_rpc::error& er, const connection_context *ctx)
+  {
+    if (!m_wallet) return not_open(er);
+    if (m_restricted)
+    {
+      er.code = WALLET_RPC_ERROR_CODE_DENIED;
+      er.message = "Command unavailable in restricted mode.";
+      return false;
+    }
+    if (m_wallet->multisig())
+    {
+      er.code = WALLET_RPC_ERROR_CODE_NOT_MULTISIG;
+      er.message = "Command unavailable for multisig wallets";
+      return false;
+    }
+
+    std::string multiuser_data;
+    if (!epee::string_tools::parse_hexstr_to_binbuff(req.multiuser_data, multiuser_data))
+    {
+      er.code = WALLET_RPC_ERROR_CODE_BAD_HEX;
+      er.message = "Failed to parse hex.";
+      return false;
+    }
+    tools::wallet2::multiuser_tx_set multiuser_txs;
+    if (!m_wallet->load_multiuser_tx(multiuser_data, multiuser_txs, [](const tools::wallet2::multiuser_tx_set &txs) { return true; }))
+    {
+      er.code = WALLET_RPC_ERROR_CODE_BAD_MULTIUSER_DATA;
+      er.message = "Failed to parse multiuser data";
+      return false;
+    }
+    if (multiuser_txs.m_ptx.tx.vout.size() < 2)
+    {
+      er.code = WALLET_RPC_ERROR_CODE_BAD_MULTIUSER_DATA;
+      er.message = "Transaction has fewer than 2 outputs";
+      return false;
+    }
+
+    try
+    {
+      tools::wallet2::pending_tx &ptx = multiuser_txs.m_ptx;
+      m_wallet->commit_tx(ptx);
+    }
+    catch (const std::exception &e)
+    {
+      er.code = WALLET_RPC_ERROR_CODE_MULTIUSER_SUBMIT;
+      er.message = "Failed to submit multiuser data";
+      return false;
+    }
+    res.tx_hash = epee::string_tools::pod_to_hex(cryptonote::get_transaction_hash(multiuser_txs.m_ptx.tx));
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------

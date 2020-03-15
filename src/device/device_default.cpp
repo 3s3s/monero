@@ -286,7 +286,7 @@ namespace hw {
 
         bool device_default::generate_output_ephemeral_keys(const size_t tx_version,
                                                             const cryptonote::account_keys &sender_account_keys, const crypto::public_key &txkey_pub,  const crypto::secret_key &tx_key,
-                                                            const cryptonote::tx_destination_entry &dst_entr, const boost::optional<cryptonote::account_public_address> &change_addr, const size_t output_index,
+                                                            const cryptonote::tx_destination_entry &dst_entr, const boost::optional<cryptonote::account_public_address> &change_addr, const size_t output_index, const size_t output_offset, const bool always_use_additional_tx_key,
                                                             const bool &need_additional_txkeys, const std::vector<crypto::secret_key> &additional_tx_keys,
                                                             std::vector<crypto::public_key> &additional_tx_public_keys,
                                                             std::vector<rct::key> &amount_keys,  crypto::public_key &out_eph_public_key) {
@@ -297,6 +297,7 @@ namespace hw {
             cryptonote::keypair additional_txkey;
             if (need_additional_txkeys)
             {
+                CHECK_AND_ASSERT_MES(output_index < additional_tx_keys.size(), false, "Output index out of range");
                 additional_txkey.sec = additional_tx_keys[output_index];
                 if (dst_entr.is_subaddress)
                     additional_txkey.pub = rct::rct2pk(rct::scalarmultKey(rct::pk2rct(dst_entr.addr.m_spend_public_key), rct::sk2rct(additional_txkey.sec)));
@@ -305,7 +306,7 @@ namespace hw {
             }
 
             bool r;
-            if (change_addr && dst_entr.addr == *change_addr)
+            if (!always_use_additional_tx_key && change_addr && dst_entr.addr == *change_addr)
             {
             // sending change to yourself; derivation = a*R
                 r = generate_key_derivation(txkey_pub, sender_account_keys.m_view_secret_key, derivation);
@@ -314,7 +315,8 @@ namespace hw {
             else
             {
             // sending to the recipient; derivation = r*A (or s*C in the subaddress scheme)
-                r = generate_key_derivation(dst_entr.addr.m_view_public_key, dst_entr.is_subaddress && need_additional_txkeys ? additional_txkey.sec : tx_key, derivation);
+                bool use_additional = always_use_additional_tx_key || (dst_entr.is_subaddress && need_additional_txkeys);
+                r = generate_key_derivation(dst_entr.addr.m_view_public_key, use_additional ? additional_txkey.sec : tx_key, derivation);
                 CHECK_AND_ASSERT_MES(r, false, "at creation outs: failed to generate_key_derivation(" << dst_entr.addr.m_view_public_key << ", " << (dst_entr.is_subaddress && need_additional_txkeys ? additional_txkey.sec : tx_key) << ")");
             }
 
@@ -326,11 +328,11 @@ namespace hw {
             if (tx_version > 1)
             {
                 crypto::secret_key scalar1;
-                derivation_to_scalar(derivation, output_index, scalar1);
+                derivation_to_scalar(derivation, output_index + output_offset, scalar1);
                 amount_keys.push_back(rct::sk2rct(scalar1));
             }
-            r = derive_public_key(derivation, output_index, dst_entr.addr.m_spend_public_key, out_eph_public_key);
-            CHECK_AND_ASSERT_MES(r, false, "at creation outs: failed to derive_public_key(" << derivation << ", " << output_index << ", "<< dst_entr.addr.m_spend_public_key << ")");
+            r = derive_public_key(derivation, output_index + output_offset, dst_entr.addr.m_spend_public_key, out_eph_public_key);
+            CHECK_AND_ASSERT_MES(r, false, "at creation outs: failed to derive_public_key(" << derivation << ", " << output_index << " (+offset " << output_offset << "), "<< dst_entr.addr.m_spend_public_key << ")");
 
             return r;
         }

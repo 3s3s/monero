@@ -1384,7 +1384,7 @@ namespace hw {
 
 
     bool device_ledger::generate_output_ephemeral_keys(const size_t tx_version, const cryptonote::account_keys &sender_account_keys, const crypto::public_key &txkey_pub,  const crypto::secret_key &tx_key,
-                                                       const cryptonote::tx_destination_entry &dst_entr, const boost::optional<cryptonote::account_public_address> &change_addr, const size_t output_index,
+                                                       const cryptonote::tx_destination_entry &dst_entr, const boost::optional<cryptonote::account_public_address> &change_addr, const size_t output_index, const size_t output_offset, const bool always_use_additional_tx_key,
                                                        const bool &need_additional_txkeys,  const std::vector<crypto::secret_key> &additional_tx_keys,
                                                        std::vector<crypto::public_key> &additional_tx_public_keys,
                                                        std::vector<rct::key> &amount_keys,
@@ -1401,7 +1401,9 @@ namespace hw {
       const cryptonote::tx_destination_entry   dst_entr_x                     = dst_entr;
       const boost::optional<cryptonote::account_public_address> change_addr_x = change_addr;
       const size_t                             output_index_x                 = output_index;
+      const size_t                             output_offset_x                = output_offset;
       const bool                               need_additional_txkeys_x       = need_additional_txkeys;
+      const bool                               always_use_additional_tx_key_x = always_use_additional_tx_key;
       
       std::vector<crypto::secret_key>    additional_tx_keys_x;
       for (const auto k: additional_tx_keys) {
@@ -1424,11 +1426,13 @@ namespace hw {
         log_hexbuffer("generate_output_ephemeral_keys: [[IN]] change_addr.spend", (*change_addr_x).m_spend_public_key.data, 32);
       }
       log_message  ("generate_output_ephemeral_keys: [[IN]] output_index",  std::to_string(output_index_x));
+      log_message  ("generate_output_ephemeral_keys: [[IN]] output_offset",  std::to_string(output_offset_x));
       log_message  ("generate_output_ephemeral_keys: [[IN]] need_additional_txkeys",  std::to_string(need_additional_txkeys_x));
+      log_message  ("generate_output_ephemeral_keys: [[IN]] always_use_additional_tx_key",  std::to_string(always_use_additional_tx_key));
       if(need_additional_txkeys_x) {
         log_hexbuffer("generate_output_ephemeral_keys: [[IN]] additional_tx_keys[oi]", additional_tx_keys_x[output_index].data, 32);
       }
-      this->controle_device->generate_output_ephemeral_keys(tx_version_x, sender_account_keys_x, txkey_pub_x, tx_key_x, dst_entr_x, change_addr_x, output_index_x, need_additional_txkeys_x,  additional_tx_keys_x,
+      this->controle_device->generate_output_ephemeral_keys(tx_version_x, sender_account_keys_x, txkey_pub_x, tx_key_x, dst_entr_x, change_addr_x, output_index_x, output_offset_x, always_use_additional_tx_key_x, need_additional_txkeys_x,  additional_tx_keys_x,
                                                             additional_tx_public_keys_x, amount_keys_x, out_eph_public_key_x);
       if(need_additional_txkeys_x) {
         log_hexbuffer("additional_tx_public_keys_x: [[OUT]] additional_tx_public_keys_x", additional_tx_public_keys_x.back().data, 32);
@@ -1444,6 +1448,8 @@ namespace hw {
       if (need_additional_txkeys) {
           additional_txkey.sec = additional_tx_keys[output_index];
       }
+
+#warning TODO: get cslashm to update protocol and ledger fw
 
       int offset = set_command_header_noopt(INS_GEN_TXOUT_KEYS);
       //tx_version
@@ -1518,7 +1524,7 @@ namespace hw {
 
       // add ABPkeys
       this->add_output_key_mapping(dst_entr.addr.m_view_public_key, dst_entr.addr.m_spend_public_key, dst_entr.is_subaddress, is_change,
-                                   need_additional_txkeys, output_index,
+                                   need_additional_txkeys, output_index, output_offset, always_use_additional_tx_key,
                                    amount_keys.back(), out_eph_public_key);
 
       #ifdef DEBUG_HWDEVICE
@@ -1534,7 +1540,7 @@ namespace hw {
     }
 
     bool  device_ledger::add_output_key_mapping(const crypto::public_key &Aout, const crypto::public_key &Bout, const bool is_subaddress, const bool is_change,
-                                                const bool need_additional, const size_t real_output_index,
+                                                const bool need_additional, const size_t real_output_index, const size_t real_output_offset, const bool always_use_additional_tx_key,
                                                 const rct::key &amount_key,  const crypto::public_key &out_eph_public_key)  {
         key_map.add(ABPkeys(rct::pk2rct(Aout),rct::pk2rct(Bout), is_subaddress, is_change, need_additional, real_output_index, rct::pk2rct(out_eph_public_key), amount_key));
         return true;

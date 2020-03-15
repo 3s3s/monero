@@ -42,6 +42,7 @@
 #include "cryptonote_basic.h"
 #include "difficulty.h"
 #include "common/unordered_containers_boost_serialization.h"
+#include "common/tuple_boost_serialization.h"
 #include "crypto/crypto.h"
 #include "ringct/rctTypes.h"
 #include "ringct/rctOps.h"
@@ -265,6 +266,14 @@ namespace boost
   inline void serialize(Archive &a, rct::multisig_out &x, const boost::serialization::version_type ver)
   {
     a & x.c;
+  }
+
+  template <class Archive>
+  inline void serialize(Archive &a, rct::multiuser_out &x, const boost::serialization::version_type ver)
+  {
+    a & x.a;
+    a & x.index;
+    a & x.output_offset;
   }
 
   template <class Archive>

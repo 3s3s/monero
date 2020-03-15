@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2019, The Monero Project
+// Copyright (c) 2019, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -30,45 +30,45 @@
 
 #pragma once
 
-#include <set>
-#include <unordered_set>
+#include <tuple>
 
-template <template <bool> class Archive, class T>
-bool do_serialize(Archive<false> &ar, std::set<T> &v);
-template <template <bool> class Archive, class T>
-bool do_serialize(Archive<true> &ar, std::set<T> &v);
-
-template <template <bool> class Archive, class T>
-bool do_serialize(Archive<false> &ar, std::unordered_set<T> &v);
-template <template <bool> class Archive, class T>
-bool do_serialize(Archive<true> &ar, std::unordered_set<T> &v);
-
-namespace serialization
+namespace boost
 {
-  namespace detail
+  namespace serialization
   {
-    template <typename T>
-    void do_add(std::set<T> &c, T &&e)
+    template <class Archive, class T0, class T1, class T2>
+    inline void serialize(Archive &a, std::tuple<T0, T1, T2> &x, const boost::serialization::version_type ver)
     {
-      c.insert(std::move(e));
+      a & std::get<0>(x);
+      a & std::get<1>(x);
+      a & std::get<2>(x);
     }
-    template <typename T>
-    void do_add(std::unordered_set<T> &c, T &&e)
+    template <class Archive, class T0, class T1, class T2, class T3>
+    inline void serialize(Archive &a, std::tuple<T0, T1, T2, T3> &x, const boost::serialization::version_type ver)
     {
-      c.insert(std::move(e));
+      a & std::get<0>(x);
+      a & std::get<1>(x);
+      a & std::get<2>(x);
+      a & std::get<3>(x);
+    }
+    template <class Archive, class T0, class T1, class T2, class T3, class T4>
+    inline void serialize(Archive &a, std::tuple<T0, T1, T2, T3, T4> &x, const boost::serialization::version_type ver)
+    {
+      a & std::get<0>(x);
+      a & std::get<1>(x);
+      a & std::get<2>(x);
+      a & std::get<3>(x);
+      a & std::get<4>(x);
+    }
+    template <class Archive, class T0, class T1, class T2, class T3, class T4, class T5>
+    inline void serialize(Archive &a, std::tuple<T0, T1, T2, T3, T4, T5> &x, const boost::serialization::version_type ver)
+    {
+      a & std::get<0>(x);
+      a & std::get<1>(x);
+      a & std::get<2>(x);
+      a & std::get<3>(x);
+      a & std::get<4>(x);
+      a & std::get<5>(x);
     }
   }
 }
-
-#include "serialization.h"
-
-template <template <bool> class Archive, class T>
-bool do_serialize(Archive<false> &ar, std::set<T> &v) { return do_serialize_container(ar, v); }
-template <template <bool> class Archive, class T>
-bool do_serialize(Archive<true> &ar, std::set<T> &v) { return do_serialize_container(ar, v); }
-
-template <template <bool> class Archive, class T>
-bool do_serialize(Archive<false> &ar, std::unordered_set<T> &v) { return do_serialize_container(ar, v); }
-template <template <bool> class Archive, class T>
-bool do_serialize(Archive<true> &ar, std::unordered_set<T> &v) { return do_serialize_container(ar, v); }
-

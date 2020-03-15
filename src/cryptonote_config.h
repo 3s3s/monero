@@ -185,6 +185,7 @@
 //#define CRYPTONOTE_PRUNING_DEBUG_SPOOF_SEED
 
 #define RPC_CREDITS_PER_HASH_SCALE ((float)(1<<24))
+#define ALLOW_SINGLE_BULLETPROOFS
 
 // New constants are intended to go here
 namespace config

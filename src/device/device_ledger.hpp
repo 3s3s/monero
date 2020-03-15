@@ -144,7 +144,7 @@ namespace hw {
         // map public destination key to ephemeral destination key
         Keymap key_map;
         bool  add_output_key_mapping(const crypto::public_key &Aout, const crypto::public_key &Bout, const bool is_subaddress, const bool is_change,
-                                     const bool need_additional, const size_t real_output_index,
+                                     const bool need_additional, const size_t real_output_index, const size_t real_output_offset, const bool always_use_additional_tx_key,
                                      const rct::key &amount_key,  const crypto::public_key &out_eph_public_key);
         //hmac for some encrypted value
         HMACmap hmac_map;
@@ -243,7 +243,7 @@ namespace hw {
         bool  ecdhDecode(rct::ecdhTuple & masked, const rct::key & sharedSec, bool short_format) override;
 
         bool  generate_output_ephemeral_keys(const size_t tx_version, const cryptonote::account_keys &sender_account_keys, const crypto::public_key &txkey_pub,  const crypto::secret_key &tx_key,
-                                             const cryptonote::tx_destination_entry &dst_entr, const boost::optional<cryptonote::account_public_address> &change_addr, const size_t output_index,
+                                             const cryptonote::tx_destination_entry &dst_entr, const boost::optional<cryptonote::account_public_address> &change_addr, const size_t output_index, const size_t output_offset, const bool always_use_additional_tx_key,
                                              const bool &need_additional_txkeys, const std::vector<crypto::secret_key> &additional_tx_keys,
                                              std::vector<crypto::public_key> &additional_tx_public_keys,
                                              std::vector<rct::key> &amount_keys, 

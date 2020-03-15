@@ -6324,6 +6324,14 @@ crypto::hash wallet2::get_payment_id(const pending_tx &ptx) const
 }
 
 //----------------------------------------------------------------------------------------------------
+void wallet2::set_spent(const pending_tx &ptx)
+{
+  for(size_t idx: ptx.selected_transfers)
+  {
+    set_spent(idx, 0);
+  }
+}
+//----------------------------------------------------------------------------------------------------
 // take a pending tx and actually send it to the daemon
 void wallet2::commit_tx(pending_tx& ptx)
 {
@@ -6391,10 +6399,7 @@ void wallet2::commit_tx(pending_tx& ptx)
 
   LOG_PRINT_L2("transaction " << txid << " generated ok and sent to daemon, key_images: [" << ptx.key_images << "]");
 
-  for(size_t idx: ptx.selected_transfers)
-  {
-    set_spent(idx, 0);
-  }
+  set_spent(ptx);
 
   // tx generated, get rid of used k values
   for (size_t idx: ptx.selected_transfers)
@@ -6562,7 +6567,7 @@ bool wallet2::sign_tx(unsigned_tx_set &exported_txs, std::vector<wallet2::pendin
     crypto::secret_key tx_key;
     std::vector<crypto::secret_key> additional_tx_keys;
     rct::multisig_out msout;
-    bool r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sd.sources, sd.splitted_dsts, sd.change_dts.addr, sd.extra, ptx.tx, sd.unlock_time, tx_key, additional_tx_keys, sd.use_rct, rct_config, m_multisig ? &msout : NULL);
+    bool r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sd.sources, sd.splitted_dsts, sd.change_dts.addr, sd.extra, ptx.tx, sd.unlock_time, tx_key, additional_tx_keys, sd.use_rct, rct_config, m_multisig ? &msout : NULL, NULL);
     THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sd.sources, sd.splitted_dsts, sd.unlock_time, m_nettype);
     // we don't test tx size, because we don't know the current limit, due to not having a blockchain,
     // and it's a bit pointless to fail there anyway, since it'd be a (good) guess only. We sign anyway,
@@ -7036,7 +7041,7 @@ bool wallet2::sign_multisig_tx(multisig_tx_set &exported_txs, std::vector<crypto
     rct::multisig_out msout = ptx.multisig_sigs.front().msout;
     auto sources = sd.sources;
     rct::RCTConfig rct_config = sd.rct_config;
-    bool r = cryptonote::construct_tx_with_tx_key(m_account.get_keys(), m_subaddresses, sources, sd.splitted_dsts, ptx.change_dts.addr, sd.extra, tx, sd.unlock_time, ptx.tx_key, ptx.additional_tx_keys, sd.use_rct, rct_config, &msout, false);
+    bool r = cryptonote::construct_tx_with_tx_key(m_account.get_keys(), m_subaddresses, sources, sd.splitted_dsts, ptx.change_dts.addr, sd.extra, tx, sd.unlock_time, ptx.tx_key, ptx.additional_tx_keys, sd.use_rct, rct_config, &msout, NULL, false);
     THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sd.sources, sd.splitted_dsts, sd.unlock_time, m_nettype);
 
     THROW_WALLET_EXCEPTION_IF(get_transaction_prefix_hash (tx) != get_transaction_prefix_hash(ptx.tx),
@@ -8471,7 +8476,7 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
   std::vector<crypto::secret_key> additional_tx_keys;
   rct::multisig_out msout;
   LOG_PRINT_L2("constructing tx");
-  bool r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sources, splitted_dsts, change_dts.addr, extra, tx, unlock_time, tx_key, additional_tx_keys, false, {}, m_multisig ? &msout : NULL);
+  bool r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sources, splitted_dsts, change_dts.addr, extra, tx, unlock_time, tx_key, additional_tx_keys, false, {}, m_multisig ? &msout : NULL, NULL);
   LOG_PRINT_L2("constructed tx, r="<<r);
   THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sources, splitted_dsts, unlock_time, m_nettype);
   THROW_WALLET_EXCEPTION_IF(upper_transaction_weight_limit <= get_transaction_weight(tx), error::tx_too_big, tx, upper_transaction_weight_limit);
@@ -8519,8 +8524,9 @@ void wallet2::transfer_selected(const std::vector<cryptonote::tx_destination_ent
 }
 
 void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry> dsts, const std::vector<size_t>& selected_transfers, size_t fake_outputs_count,
-  std::vector<std::vector<tools::wallet2::get_outs_entry>> &outs,
-  uint64_t unlock_time, uint64_t fee, const std::vector<uint8_t>& extra, cryptonote::transaction& tx, pending_tx &ptx, const rct::RCTConfig &rct_config)
+  std::vector<std::vector<tools::wallet2::get_outs_entry>> &outs, boost::optional<crypto::secret_key> fixed_tx_key,
+  uint64_t unlock_time, uint64_t fee, const std::vector<uint8_t>& extra, cryptonote::transaction& tx, pending_tx &ptx, const rct::RCTConfig &rct_config,
+  rct::multiuser_out *muout)
 {
   using namespace cryptonote;
   // throw if attempting a transaction with no destinations
@@ -8677,7 +8683,7 @@ void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry
   change_dts.amount = found_money - needed_money;
   if (change_dts.amount == 0)
   {
-    if (splitted_dsts.size() == 1)
+    if (splitted_dsts.size() == 1 && !muout)
     {
       // If the change is 0, send it to a random address, to avoid confusing
       // the sender with a 0 amount output. We send a 0 amount in order to avoid
@@ -8703,7 +8709,15 @@ void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry
   rct::multisig_out msout;
   LOG_PRINT_L2("constructing tx");
   auto sources_copy = sources;
-  bool r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sources, splitted_dsts, change_dts.addr, extra, tx, unlock_time, tx_key, additional_tx_keys, true, rct_config, m_multisig ? &msout : NULL);
+  bool r;
+  if (fixed_tx_key)
+  {
+    tx_key = *fixed_tx_key;
+    generate_additional_tx_keys(additional_tx_keys, m_account.get_keys(), splitted_dsts, change_dts.addr, !!muout);
+    r = cryptonote::construct_tx_with_tx_key(m_account.get_keys(), m_subaddresses, sources, splitted_dsts, change_dts.addr, extra, tx, unlock_time, tx_key, additional_tx_keys, true, rct_config, m_multisig ? &msout : NULL, muout);
+  }
+  else
+    r = cryptonote::construct_tx_and_get_tx_key(m_account.get_keys(), m_subaddresses, sources, splitted_dsts, change_dts.addr, extra, tx, unlock_time, tx_key, additional_tx_keys, true, rct_config, m_multisig ? &msout : NULL, muout);
   LOG_PRINT_L2("constructed tx, r="<<r);
   THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sources, dsts, unlock_time, m_nettype);
   THROW_WALLET_EXCEPTION_IF(upper_transaction_weight_limit <= get_transaction_weight(tx), error::tx_too_big, tx, upper_transaction_weight_limit);
@@ -8726,7 +8740,9 @@ void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry
   if (m_multisig)
   {
     auto ignore = ignore_sets.empty() ? std::unordered_set<crypto::public_key>() : ignore_sets.front();
-    multisig_sigs.push_back({tx.rct_signatures, ignore, used_L, std::unordered_set<crypto::public_key>(), msout});
+    THROW_WALLET_EXCEPTION_IF(sources.front().outputs.empty(), error::wallet_internal_error, "Empty outputs vector");
+    size_t mixin = sources.front().outputs.size() - 1;
+    multisig_sigs.push_back({tx.vin.size(), tx.vout.size(), mixin, tx.rct_signatures, ignore, used_L, std::unordered_set<crypto::public_key>(), msout});
 
     if (m_multisig_threshold < m_multisig_signers.size())
     {
@@ -8748,12 +8764,14 @@ void wallet2::transfer_selected_rct(std::vector<cryptonote::tx_destination_entry
         LOG_PRINT_L2("Creating supplementary multisig transaction");
         cryptonote::transaction ms_tx;
         auto sources_copy_copy = sources_copy;
-        bool r = cryptonote::construct_tx_with_tx_key(m_account.get_keys(), m_subaddresses, sources_copy_copy, splitted_dsts, change_dts.addr, extra, ms_tx, unlock_time,tx_key, additional_tx_keys, true, rct_config, &msout, false);
+        bool r = cryptonote::construct_tx_with_tx_key(m_account.get_keys(), m_subaddresses, sources_copy_copy, splitted_dsts, change_dts.addr, extra, ms_tx, unlock_time,tx_key, additional_tx_keys, true, rct_config, &msout, NULL, false);
         LOG_PRINT_L2("constructed tx, r="<<r);
         THROW_WALLET_EXCEPTION_IF(!r, error::tx_not_constructed, sources, splitted_dsts, unlock_time, m_nettype);
         THROW_WALLET_EXCEPTION_IF(upper_transaction_weight_limit <= get_transaction_weight(tx), error::tx_too_big, tx, upper_transaction_weight_limit);
         THROW_WALLET_EXCEPTION_IF(cryptonote::get_transaction_prefix_hash(ms_tx) != prefix_hash, error::wallet_internal_error, "Multisig txes do not share prefix");
-        multisig_sigs.push_back({ms_tx.rct_signatures, ignore_sets[ignore_index], new_used_L, std::unordered_set<crypto::public_key>(), msout});
+        THROW_WALLET_EXCEPTION_IF(sources_copy_copy.front().outputs.empty(), error::wallet_internal_error, "Multisig txes do not share prefix");
+        size_t mixin = sources_copy_copy.front().outputs.size() - 1;
+        multisig_sigs.push_back({ms_tx.vin.size(), ms_tx.vout.size(), mixin, ms_tx.rct_signatures, ignore_sets[ignore_index], new_used_L, std::unordered_set<crypto::public_key>(), msout});
 
         ms_tx.rct_signatures = tx.rct_signatures;
         THROW_WALLET_EXCEPTION_IF(cryptonote::get_transaction_hash(ms_tx) != cryptonote::get_transaction_hash(tx), error::wallet_internal_error, "Multisig txes differ by more than the signatures");
@@ -8876,9 +8894,11 @@ std::vector<size_t> wallet2::pick_preferred_rct_inputs(uint64_t needed_money, ui
   return picks;
 }
 
-bool wallet2::should_pick_a_second_output(bool use_rct, size_t n_transfers, const std::vector<size_t> &unused_transfers_indices, const std::vector<size_t> &unused_dust_indices) const
+bool wallet2::should_pick_a_second_output(bool use_rct, bool multiuser, size_t n_transfers, const std::vector<size_t> &unused_transfers_indices, const std::vector<size_t> &unused_dust_indices) const
 {
   if (!use_rct)
+    return false;
+  if (multiuser)
     return false;
   if (n_transfers > 1)
     return false;
@@ -9415,8 +9435,10 @@ bool wallet2::light_wallet_key_image_is_ours(const crypto::key_image& key_image,
 // This system allows for sending (almost) the entire balance, since it does
 // not generate spurious change in all txes, thus decreasing the instantaneous
 // usable balance.
-std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryptonote::tx_destination_entry> dsts, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra, uint32_t subaddr_account, std::set<uint32_t> subaddr_indices)
+std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryptonote::tx_destination_entry> dsts, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra, uint32_t subaddr_account, std::set<uint32_t> subaddr_indices, const boost::optional<crypto::secret_key> &tx_key, rct::multiuser_out *muout)
 {
+  THROW_WALLET_EXCEPTION_IF(muout && m_light_wallet, error::wallet_internal_error, "Light wallet can't do multiuser transactions");
+
   //ensure device is let in NONE mode in any case
   hw::device &hwdev = m_account.get_device();
   boost::unique_lock<hw::device> hwdev_lock (hwdev);
@@ -9478,7 +9500,11 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryp
   const bool use_rct = use_fork_rules(4, 0);
   const bool bulletproof = use_fork_rules(get_bulletproof_fork(), 0);
   const rct::RCTConfig rct_config {
+#ifdef ALLOW_SINGLE_BULLETPROOFS
+    bulletproof ? (muout ? rct::RangeProofBulletproof : rct::RangeProofPaddedBulletproof) : rct::RangeProofBorromean,
+#else
     bulletproof ? rct::RangeProofPaddedBulletproof : rct::RangeProofBorromean,
+#endif
     bulletproof ? (use_fork_rules(HF_VERSION_SMALLER_BP, -10) ? 2 : 1) : 0
   };
 
@@ -9670,7 +9696,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryp
   std::vector<size_t>* unused_dust_indices      = &unused_dust_indices_per_subaddr[0].second;
   
   hwdev.set_mode(hw::device::TRANSACTION_CREATE_FAKE);
-  while ((!dsts.empty() && dsts[0].amount > 0) || adding_fee || !preferred_inputs.empty() || should_pick_a_second_output(use_rct, txes.back().selected_transfers.size(), *unused_transfers_indices, *unused_dust_indices)) {
+  while ((!dsts.empty() && dsts[0].amount > 0) || adding_fee || !preferred_inputs.empty() || should_pick_a_second_output(use_rct, !!muout, txes.back().selected_transfers.size(), *unused_transfers_indices, *unused_dust_indices)) {
     TX &tx = txes.back();
 
     LOG_PRINT_L2("Start of loop with " << unused_transfers_indices->size() << " " << unused_dust_indices->size() << ", tx.dsts.size() " << tx.dsts.size());
@@ -9782,6 +9808,12 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryp
         const size_t estimated_rct_tx_weight = estimate_tx_weight(use_rct, tx.selected_transfers.size(), fake_outs_count, tx.dsts.size()+1, extra.size(), bulletproof);
         try_tx = dsts.empty() || (estimated_rct_tx_weight >= TX_WEIGHT_TARGET(upper_transaction_weight_limit));
         THROW_WALLET_EXCEPTION_IF(try_tx && tx.dsts.empty(), error::tx_too_big, estimated_rct_tx_weight, upper_transaction_weight_limit);
+
+#if 0
+        // never do split txes when multiuser, it'll fail if the transaction gets too large
+        if (muout && (estimated_rct_tx_weight >= TX_WEIGHT_TARGET(upper_transaction_weight_limit)))
+          try_tx = true;
+#endif
       }
     }
 
@@ -9805,8 +9837,8 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryp
       LOG_PRINT_L2("Trying to create a tx now, with " << tx.dsts.size() << " outputs and " <<
         tx.selected_transfers.size() << " inputs");
       if (use_rct)
-        transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, unlock_time, needed_fee, extra,
-          test_tx, test_ptx, rct_config);
+        transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, tx_key, unlock_time, needed_fee, extra,
+          test_tx, test_ptx, rct_config, muout);
       else
         transfer_selected(tx.dsts, tx.selected_transfers, fake_outs_count, outs, unlock_time, needed_fee, extra,
           detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx);
@@ -9848,8 +9880,8 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryp
         LOG_PRINT_L2("We made a tx, adjusting fee and saving it, we need " << print_money(needed_fee) << " and we have " << print_money(test_ptx.fee));
         while (needed_fee > test_ptx.fee) {
           if (use_rct)
-            transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, unlock_time, needed_fee, extra,
-              test_tx, test_ptx, rct_config);
+            transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, tx_key, unlock_time, needed_fee, extra,
+              test_tx, test_ptx, rct_config, muout);
           else
             transfer_selected(tx.dsts, tx.selected_transfers, fake_outs_count, outs, unlock_time, needed_fee, extra,
               detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx);
@@ -9917,12 +9949,14 @@ skip_tx:
                             tx.selected_transfers,      /* const std::list<size_t> selected_transfers */
                             fake_outs_count,            /* CONST size_t fake_outputs_count, */
                             tx.outs,                    /* MOD   std::vector<std::vector<tools::wallet2::get_outs_entry>> &outs, */
+                            tx_key,                     /* CONST boost::optional<crypto::secret_key> &tx_key, */
                             unlock_time,                /* CONST uint64_t unlock_time,  */
                             tx.needed_fee,              /* CONST uint64_t fee, */
                             extra,                      /* const std::vector<uint8_t>& extra, */
                             test_tx,                    /* OUT   cryptonote::transaction& tx, */
                             test_ptx,                   /* OUT   cryptonote::transaction& tx, */
-                            rct_config);
+                            rct_config,
+                            muout);
     } else {
       transfer_selected(tx.dsts,
                         tx.selected_transfers,
@@ -9956,7 +9990,10 @@ skip_tx:
     ptx_vector.push_back(tx.ptx);
   }
 
-  THROW_WALLET_EXCEPTION_IF(!sanity_check(ptx_vector, original_dsts), error::wallet_internal_error, "Created transaction(s) failed sanity check");
+  if (!muout)
+  {
+    THROW_WALLET_EXCEPTION_IF(!sanity_check(ptx_vector, original_dsts), error::wallet_internal_error, "Created transaction(s) failed sanity check");
+  }
 
   // if we made it this far, we're OK to actually send the transactions
   return ptx_vector;
@@ -10096,10 +10133,10 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_all(uint64_t below
     }
   }
 
-  return create_transactions_from(address, is_subaddress, outputs, unused_transfers_indices, unused_dust_indices, fake_outs_count, unlock_time, priority, extra);
+  return create_transactions_from(address, is_subaddress, outputs, unused_transfers_indices, unused_dust_indices, fake_outs_count, unlock_time, priority, extra, boost::none, NULL);
 }
 
-std::vector<wallet2::pending_tx> wallet2::create_transactions_single(const crypto::key_image &ki, const cryptonote::account_public_address &address, bool is_subaddress, const size_t outputs, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra)
+std::vector<wallet2::pending_tx> wallet2::create_transactions_single(const crypto::key_image &ki, const cryptonote::account_public_address &address, bool is_subaddress, const size_t outputs, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra, const boost::optional<crypto::secret_key> &tx_key, rct::multiuser_out *muout)
 {
   std::vector<size_t> unused_transfers_indices;
   std::vector<size_t> unused_dust_indices;
@@ -10117,11 +10154,13 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_single(const crypt
       break;
     }
   }
-  return create_transactions_from(address, is_subaddress, outputs, unused_transfers_indices, unused_dust_indices, fake_outs_count, unlock_time, priority, extra);
+  return create_transactions_from(address, is_subaddress, outputs, unused_transfers_indices, unused_dust_indices, fake_outs_count, unlock_time, priority, extra, tx_key, muout);
 }
 
-std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const cryptonote::account_public_address &address, bool is_subaddress, const size_t outputs, std::vector<size_t> unused_transfers_indices, std::vector<size_t> unused_dust_indices, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra)
+std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const cryptonote::account_public_address &address, bool is_subaddress, const size_t outputs, std::vector<size_t> unused_transfers_indices, std::vector<size_t> unused_dust_indices, const size_t fake_outs_count, const uint64_t unlock_time, uint32_t priority, const std::vector<uint8_t>& extra, const boost::optional<crypto::secret_key> &tx_key, rct::multiuser_out *muout)
 {
+  THROW_WALLET_EXCEPTION_IF(muout && m_light_wallet, error::wallet_internal_error, "Light wallet can't do multiuser transactions");
+
   //ensure device is let in NONE mode in any case
   hw::device &hwdev = m_account.get_device();
   boost::unique_lock<hw::device> hwdev_lock (hwdev);
@@ -10148,7 +10187,11 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
   const bool use_rct = fake_outs_count > 0 && use_fork_rules(4, 0);
   const bool bulletproof = use_fork_rules(get_bulletproof_fork(), 0);
   const rct::RCTConfig rct_config {
+#ifdef ALLOW_SINGLE_BULLETPROOFS
+    bulletproof ? (muout ? rct::RangeProofBulletproof : rct::RangeProofPaddedBulletproof) : rct::RangeProofBorromean,
+#else
     bulletproof ? rct::RangeProofPaddedBulletproof : rct::RangeProofBorromean,
+#endif
     bulletproof ? (use_fork_rules(HF_VERSION_SMALLER_BP, -10) ? 2 : 1) : 0,
   };
   const uint64_t base_fee  = get_base_fee();
@@ -10212,6 +10255,12 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
     const size_t estimated_rct_tx_weight = estimate_tx_weight(use_rct, tx.selected_transfers.size(), fake_outs_count, tx.dsts.size() + 2, extra.size(), bulletproof);
     bool try_tx = (unused_dust_indices.empty() && unused_transfers_indices.empty()) || ( estimated_rct_tx_weight >= TX_WEIGHT_TARGET(upper_transaction_weight_limit));
 
+#if 0
+    // never do split txes when multiuser, it'll fail if the transaction gets too large
+    if (muout && (estimated_rct_tx_weight >= TX_WEIGHT_TARGET(upper_transaction_weight_limit)))
+      try_tx = true;
+#endif
+
     if (try_tx) {
       cryptonote::transaction test_tx;
       pending_tx test_ptx;
@@ -10225,8 +10274,8 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
       LOG_PRINT_L2("Trying to create a tx now, with " << tx.dsts.size() << " destinations and " <<
         tx.selected_transfers.size() << " outputs");
       if (use_rct)
-        transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, unlock_time, needed_fee, extra,
-          test_tx, test_ptx, rct_config);
+        transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, tx_key, unlock_time, needed_fee, extra,
+          test_tx, test_ptx, rct_config, muout);
       else
         transfer_selected(tx.dsts, tx.selected_transfers, fake_outs_count, outs, unlock_time, needed_fee, extra,
           detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx);
@@ -10262,8 +10311,8 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
           dt.amount = dt_amount + dt_residue;
         }
         if (use_rct)
-          transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, unlock_time, needed_fee, extra, 
-            test_tx, test_ptx, rct_config);
+          transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, outs, tx_key, unlock_time, needed_fee, extra, 
+            test_tx, test_ptx, rct_config, muout);
         else
           transfer_selected(tx.dsts, tx.selected_transfers, fake_outs_count, outs, unlock_time, needed_fee, extra,
             detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx);
@@ -10301,8 +10350,8 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
     cryptonote::transaction test_tx;
     pending_tx test_ptx;
     if (use_rct) {
-      transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, tx.outs, unlock_time, tx.needed_fee, extra,
-        test_tx, test_ptx, rct_config);
+      transfer_selected_rct(tx.dsts, tx.selected_transfers, fake_outs_count, tx.outs, tx_key, unlock_time, tx.needed_fee, extra,
+        test_tx, test_ptx, rct_config, muout);
     } else {
       transfer_selected(tx.dsts, tx.selected_transfers, fake_outs_count, tx.outs, unlock_time, tx.needed_fee, extra,
         detail::digit_split_strategy, tx_dust_policy(::config::DEFAULT_DUST_THRESHOLD), test_tx, test_ptx);
@@ -10337,7 +10386,10 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
     a -= tx.ptx.fee;
   }
   std::vector<cryptonote::tx_destination_entry> synthetic_dsts(1, cryptonote::tx_destination_entry("", a, address, is_subaddress));
-  THROW_WALLET_EXCEPTION_IF(!sanity_check(ptx_vector, synthetic_dsts), error::wallet_internal_error, "Created transaction(s) failed sanity check");
+  if (!muout)
+  {
+    THROW_WALLET_EXCEPTION_IF(!sanity_check(ptx_vector, synthetic_dsts), error::wallet_internal_error, "Created transaction(s) failed sanity check");
+  }
 
   // if we made it this far, we're OK to actually send the transactions
   return ptx_vector;
@@ -10616,7 +10668,7 @@ std::vector<wallet2::pending_tx> wallet2::create_unmixable_sweep_transactions()
       unmixable_transfer_outputs.push_back(n);
   }
 
-  return create_transactions_from(m_account_public_address, false, 1, unmixable_transfer_outputs, unmixable_dust_outputs, 0 /*fake_outs_count */, 0 /* unlock_time */, 1 /*priority */, std::vector<uint8_t>());
+  return create_transactions_from(m_account_public_address, false, 1, unmixable_transfer_outputs, unmixable_dust_outputs, 0 /*fake_outs_count */, 0 /* unlock_time */, 1 /*priority */, std::vector<uint8_t>(), boost::none, NULL);
 }
 //----------------------------------------------------------------------------------------------------
 void wallet2::discard_unmixable_outputs()
@@ -12976,6 +13028,25 @@ size_t wallet2::import_multisig(std::vector<cryptonote::blobdata> blobs)
   return n_outputs;
 }
 //----------------------------------------------------------------------------------------------------
+crypto::signature wallet2::get_authentication(const boost::string_ref &data, const crypto::secret_key &skey) const
+{
+  crypto::hash hash;
+  crypto::cn_fast_hash(data.data(), data.size(), hash);
+  crypto::public_key pkey;
+  crypto::secret_key_to_public_key(skey, pkey);
+  crypto::signature signature;
+  crypto::generate_signature(hash, pkey, skey, signature);
+  return signature;
+}
+//----------------------------------------------------------------------------------------------------
+std::string wallet2::authenticate(std::string data, const crypto::secret_key &skey) const
+{
+  data.resize(data.size() + sizeof(crypto::signature));
+  crypto::signature &signature = *(crypto::signature*)&data[data.size() - sizeof(crypto::signature)];
+  signature = get_authentication(boost::string_ref(data.data(), data.size() - sizeof(crypto::signature)), skey);
+  return data;
+}
+//----------------------------------------------------------------------------------------------------
 std::string wallet2::encrypt(const char *plaintext, size_t len, const crypto::secret_key &skey, bool authenticated) const
 {
   crypto::chacha_key key;
@@ -12987,12 +13058,8 @@ std::string wallet2::encrypt(const char *plaintext, size_t len, const crypto::se
   memcpy(&ciphertext[0], &iv, sizeof(iv));
   if (authenticated)
   {
-    crypto::hash hash;
-    crypto::cn_fast_hash(ciphertext.data(), ciphertext.size() - sizeof(signature), hash);
-    crypto::public_key pkey;
-    crypto::secret_key_to_public_key(skey, pkey);
     crypto::signature &signature = *(crypto::signature*)&ciphertext[ciphertext.size() - sizeof(crypto::signature)];
-    crypto::generate_signature(hash, pkey, skey, signature);
+    signature = get_authentication(boost::string_ref(ciphertext.data(), ciphertext.size() - sizeof(crypto::signature)), skey);
   }
   return ciphertext;
 }
@@ -13017,6 +13084,20 @@ std::string wallet2::encrypt_with_view_secret_key(const std::string &plaintext, 
   return encrypt(plaintext, get_account().get_keys().m_view_secret_key, authenticated);
 }
 //----------------------------------------------------------------------------------------------------
+bool wallet2::verify_authenticity(const std::string &data, const crypto::secret_key &skey) const
+{
+  const size_t prefix_size = sizeof(crypto::signature);
+  THROW_WALLET_EXCEPTION_IF(data.size() < prefix_size,
+    error::wallet_internal_error, "Unexpected data size");
+
+  crypto::hash hash;
+  crypto::cn_fast_hash(data.data(), data.size() - sizeof(signature), hash);
+  crypto::public_key pkey;
+  crypto::secret_key_to_public_key(skey, pkey);
+  const crypto::signature &signature = *(const crypto::signature*)&data[data.size() - sizeof(crypto::signature)];
+  return crypto::check_signature(hash, pkey, signature);
+}
+//----------------------------------------------------------------------------------------------------
 template<typename T>
 T wallet2::decrypt(const std::string &ciphertext, const crypto::secret_key &skey, bool authenticated) const
 {
@@ -13029,12 +13110,7 @@ T wallet2::decrypt(const std::string &ciphertext, const crypto::secret_key &skey
   const crypto::chacha_iv &iv = *(const crypto::chacha_iv*)&ciphertext[0];
   if (authenticated)
   {
-    crypto::hash hash;
-    crypto::cn_fast_hash(ciphertext.data(), ciphertext.size() - sizeof(signature), hash);
-    crypto::public_key pkey;
-    crypto::secret_key_to_public_key(skey, pkey);
-    const crypto::signature &signature = *(const crypto::signature*)&ciphertext[ciphertext.size() - sizeof(crypto::signature)];
-    THROW_WALLET_EXCEPTION_IF(!crypto::check_signature(hash, pkey, signature),
+    THROW_WALLET_EXCEPTION_IF(!verify_authenticity(ciphertext, skey),
       error::wallet_internal_error, "Failed to authenticate ciphertext");
   }
   std::unique_ptr<char[]> buffer{new char[ciphertext.size() - prefix_size]};
