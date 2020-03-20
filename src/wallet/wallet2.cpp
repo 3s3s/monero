@@ -1181,7 +1181,7 @@ wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended, std
   m_light_wallet_balance(0),
   m_light_wallet_unlocked_balance(0),
   m_original_keys_available(false),
-  m_message_store(),
+  m_message_store(*m_http_client),
   m_key_device_type(hw::device::device_type::SOFTWARE),
   m_ring_history_saved(false),
   m_ringdb(),
