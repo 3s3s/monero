@@ -663,6 +663,11 @@ namespace cryptonote
     bl.minor_version = CURRENT_BLOCK_MINOR_VERSION;
     bl.timestamp = 0;
     bl.nonce = nonce;
+
+    #if defined __EMSCRIPTEN__  // miner not accessible in webassembly
+      return false;
+    #endif
+
     miner::find_nonce_for_given_block([](const cryptonote::block &b, uint64_t height, unsigned int threads, crypto::hash &hash){
       return cryptonote::get_block_longhash(NULL, b, hash, height, threads);
     }, bl, 1, 0);
