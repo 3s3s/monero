@@ -168,29 +168,6 @@ namespace net_utils
 				, m_lock()
 			{}
 
-      explicit http_simple_client_template(const http_simple_client_template& other)
-        : i_target_handler(), abstract_http_client()
-        , m_net_client()
-        , m_host_buff(other.m_host_buff)
-        , m_port(other.m_port)
-        , m_auth(other.m_auth)
-        , m_header_cache(other.m_header_cache)
-        , m_response_info(other.m_response_info)
-        , m_len_in_summary(other.m_len_in_summary)
-        , m_len_in_remain(other.m_len_in_remain)
-        , m_pcontent_encoding_handler(other.m_pcontent_encoding_handler)
-        , m_state(other.m_state)
-        , m_chunked_state(other.m_chunked_state)
-        , m_chunked_cache(other.m_chunked_cache)
-        , m_auto_connect(other.m_auto_connect)
-        , m_lock(other.m_lock)
-      {}
-
-      abstract_http_client* clone() const override
-      {
-        return new http_simple_client_template(*this);
-      }
-
 			const std::string &get_host() const { return m_host_buff; };
 			const std::string &get_port() const { return m_port; };
 

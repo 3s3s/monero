@@ -63,7 +63,6 @@ namespace epee
       public:
         abstract_http_client() {}
         virtual ~abstract_http_client() {}
-        virtual abstract_http_client* clone() const = 0;
         bool set_server(const std::string& address, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect);
         virtual void set_server(std::string host, std::string port, boost::optional<login> user, ssl_options_t ssl_options = ssl_support_t::e_ssl_support_autodetect) = 0;
         virtual void set_auto_connect(bool auto_connect) = 0;
