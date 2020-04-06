@@ -1127,8 +1127,8 @@ void wallet_device_callback::on_progress(const hw::device_progress& event)
     wallet->on_device_progress(event);
 }
 
-wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended, std::unique_ptr<epee::net_utils::http::abstract_http_client> http_client):
-  m_http_client(std::move(http_client)),
+wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended, std::unique_ptr<epee::net_utils::http::http_client_factory> http_client_factory):
+  m_http_client(std::move(http_client_factory->create())),
   m_multisig_rescan_info(NULL),
   m_multisig_rescan_k(NULL),
   m_upper_transaction_weight_limit(0),
@@ -1184,7 +1184,7 @@ wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended, std
   m_light_wallet_balance(0),
   m_light_wallet_unlocked_balance(0),
   m_original_keys_available(false),
-  m_message_store(std::unique_ptr<epee::net_utils::http::abstract_http_client>(m_http_client->clone())),
+  m_message_store(std::move(http_client_factory->create())),
   m_key_device_type(hw::device::device_type::SOFTWARE),
   m_ring_history_saved(false),
   m_ringdb(),
