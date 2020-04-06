@@ -203,7 +203,7 @@ namespace mms
   class message_store
   {
   public:
-    message_store(std::unique_ptr<epee::net_utils::http::abstract_http_client> http_client);
+    message_store(std::unique_ptr<epee::net_utils::http::abstract_http_client> http_client = std::unique_ptr<epee::net_utils::http::http_simple_client>(new epee::net_utils::http::http_simple_client()));
 
     // Initialize and start to use the MMS, set the first signer, this wallet itself
     // Filename, if not null and not empty, is used to create the ".mms" file

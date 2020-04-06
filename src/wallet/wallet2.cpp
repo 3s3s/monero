@@ -1179,7 +1179,11 @@ wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended, std
   m_light_wallet_balance(0),
   m_light_wallet_unlocked_balance(0),
   m_original_keys_available(false),
+<<<<<<< HEAD
   m_message_store(http_client_factory->create()),
+=======
+  m_message_store(std::move(http_client_factory->create())),
+>>>>>>> Allow wallet2.h to run in WebAssembly
   m_key_device_type(hw::device::device_type::SOFTWARE),
   m_ring_history_saved(false),
   m_ringdb(),
