@@ -1179,11 +1179,7 @@ wallet2::wallet2(network_type nettype, uint64_t kdf_rounds, bool unattended, std
   m_light_wallet_balance(0),
   m_light_wallet_unlocked_balance(0),
   m_original_keys_available(false),
-<<<<<<< HEAD
   m_message_store(http_client_factory->create()),
-=======
-  m_message_store(std::move(http_client_factory->create())),
->>>>>>> Allow wallet2.h to run in WebAssembly
   m_key_device_type(hw::device::device_type::SOFTWARE),
   m_ring_history_saved(false),
   m_ringdb(),
@@ -1561,12 +1557,6 @@ void wallet2::expand_subaddresses(const cryptonote::subaddress_index& index)
     }
     m_subaddress_labels[index.major].resize(index.minor + 1);
   }
-}
-//----------------------------------------------------------------------------------------------------
-void wallet2::create_one_off_subaddress(const cryptonote::subaddress_index& index)
-{
-  const crypto::public_key pkey = get_subaddress_spend_public_key(index);
-  m_subaddresses[pkey] = index;
 }
 //----------------------------------------------------------------------------------------------------
 std::string wallet2::get_subaddress_label(const cryptonote::subaddress_index& index) const
@@ -2110,8 +2100,7 @@ void wallet2::process_new_transaction(const crypto::hash &txid, const cryptonote
             td.m_amount = amount;
             td.m_pk_index = pk_index - 1;
             td.m_subaddr_index = tx_scan_info[o].received->index;
-            if (tx_scan_info[o].received->index.major < m_subaddress_labels.size() && tx_scan_info[o].received->index.minor < m_subaddress_labels[tx_scan_info[o].received->index.major].size())
-              expand_subaddresses(tx_scan_info[o].received->index);
+            expand_subaddresses(tx_scan_info[o].received->index);
             if (tx.vout[o].amount == 0)
             {
               td.m_mask = tx_scan_info[o].mask;
@@ -2189,8 +2178,7 @@ void wallet2::process_new_transaction(const crypto::hash &txid, const cryptonote
             td.m_amount = amount;
             td.m_pk_index = pk_index - 1;
             td.m_subaddr_index = tx_scan_info[o].received->index;
-            if (tx_scan_info[o].received->index.major < m_subaddress_labels.size() && tx_scan_info[o].received->index.minor < m_subaddress_labels[tx_scan_info[o].received->index.major].size())
-              expand_subaddresses(tx_scan_info[o].received->index);
+            expand_subaddresses(tx_scan_info[o].received->index);
             if (tx.vout[o].amount == 0)
             {
               td.m_mask = tx_scan_info[o].mask;
@@ -12759,8 +12747,7 @@ process:
     const crypto::public_key& out_key = boost::get<cryptonote::txout_to_key>(td.m_tx.vout[td.m_internal_output_index].target).key;
     bool r = cryptonote::generate_key_image_helper(m_account.get_keys(), m_subaddresses, out_key, tx_pub_key, additional_tx_pub_keys, td.m_internal_output_index, in_ephemeral, td.m_key_image, m_account.get_device());
     THROW_WALLET_EXCEPTION_IF(!r, error::wallet_internal_error, "Failed to generate key image");
-    if (td.m_subaddr_index.major < m_subaddress_labels.size() && td.m_subaddr_index.minor < m_subaddress_labels[td.m_subaddr_index.major].size())
-      expand_subaddresses(td.m_subaddr_index);
+    expand_subaddresses(td.m_subaddr_index);
     td.m_key_image_known = true;
     td.m_key_image_request = true;
     td.m_key_image_partial = false;
