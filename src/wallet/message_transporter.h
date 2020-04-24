@@ -83,7 +83,7 @@ typedef epee::misc_utils::struct_init<transport_message_t> transport_message;
 class message_transporter
 {
 public:
-  message_transporter(std::unique_ptr<epee::net_utils::http::abstract_http_client> http_client = std::unique_ptr<epee::net_utils::http::http_simple_client>(new epee::net_utils::http::http_simple_client()));
+  message_transporter(std::unique_ptr<epee::net_utils::http::abstract_http_client> http_client);
   void set_options(const std::string &bitmessage_address, const epee::wipeable_string &bitmessage_login);
   bool send_message(const transport_message &message);
   bool receive_messages(const std::vector<std::string> &destination_transport_addresses,
