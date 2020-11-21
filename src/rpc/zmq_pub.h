@@ -36,7 +36,10 @@
 #include <memory>
 #include <vector>
 
+#include "crypto/crypto.h"
 #include "cryptonote_basic/fwd.h"
+#include "cryptonote_basic/cryptonote_basic.h"  // TODO (woodser): this increases daemon dependencies unecessarily because only needed for wallet rpc
+#include "cryptonote_basic/subaddress_index.h"
 #include "net/zmq.h"
 #include "span.h"
 
@@ -60,6 +63,9 @@ class zmq_pub
     std::deque<std::vector<txpool_event>> txes_;
     std::array<std::size_t, 2> chain_subs_;
     std::array<std::size_t, 2> txpool_subs_;
+    std::array<std::size_t, 2> unconfirmed_money_received_subs_;
+    std::array<std::size_t, 2> money_received_subs_;
+    std::array<std::size_t, 2> money_spent_subs_;
     boost::mutex sync_; //!< Synchronizes counts in `*_subs_` arrays.
 
   public:
@@ -92,6 +98,12 @@ class zmq_pub
         pool. Thread-safe.
         \return Number of ZMQ messages sent to relay. */
     std::size_t send_txpool_add(std::vector<cryptonote::txpool_event> txes);
+
+    // TODO (woodser): comment these
+    // TODO (woodser): wallet rpc pubs alongside daemon pubs? might increase size of daemon unecessarily
+    std::size_t send_unconfirmed_money_received(uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx, uint64_t amount, const cryptonote::subaddress_index& subaddr_index);
+    std::size_t send_money_received(uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx, uint64_t amount, const cryptonote::subaddress_index& subaddr_index, bool is_change, uint64_t unlock_height);
+    std::size_t send_money_spent(uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx_in, uint64_t amount, const cryptonote::transaction& cn_tx_out, const cryptonote::subaddress_index& subaddr_index);
 
     //! Callable for `send_chain_main` with weak ownership to `zmq_pub` object.
     struct chain_main

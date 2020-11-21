@@ -38,6 +38,10 @@ set(wallet_sources
   message_store.cpp
   message_transporter.cpp
   wallet_rpc_payments.cpp
+  ../serialization/json_object.cpp
+  ../rpc/zmq_pub.cpp
+  ../rpc/zmq_server.cpp
+  wallet_rpc_handler.cpp
 )
 
 set(wallet_private_headers
@@ -51,7 +55,11 @@ set(wallet_private_headers
   node_rpc_proxy.h
   message_store.h
   message_transporter.h
-  wallet_rpc_helpers.h)
+  wallet_rpc_helpers.h
+  ../serialization/json_object.h
+  ../rpc/zmq_pub.h
+  ../rpc/zmq_server.h
+  wallet_rpc_handler.h)
 
 monero_private_headers(wallet
   ${wallet_private_headers})

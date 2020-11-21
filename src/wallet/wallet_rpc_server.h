@@ -38,12 +38,51 @@
 #include "math_helper.h"
 #include "wallet_rpc_server_commands_defs.h"
 #include "wallet2.h"
+#include "rpc/zmq_pub.h"
+#include "cryptonote_core/cryptonote_core.h"  // TODO (woodser): isn't this imported through rpc_handler?
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
 #define MONERO_DEFAULT_LOG_CATEGORY "wallet.rpc"
 
 namespace tools
 {
+  struct t_internals;
+
+  // wallet2 notification listener which publishes ZMQ notifications. // TODO (woodser): move this to wallet2
+  struct wallet2_zmq_publisher : public tools::i_wallet2_callback {
+
+  public:
+
+    wallet2_zmq_publisher(std::shared_ptr<cryptonote::listener::zmq_pub> zmq_pub) : m_zmq_pub(zmq_pub) { }
+
+    ~wallet2_zmq_publisher() { }
+
+    void on_new_block(uint64_t height, const cryptonote::block& cn_block) override {
+      std::cout << "wallet2_zmq_publisher::on_new_block()" << std::endl;
+      std::vector<const cryptonote::block> blocks;
+      blocks.push_back(cn_block);
+      m_zmq_pub->send_chain_main(height, epee::to_span(blocks));
+    }
+
+    void on_unconfirmed_money_received(uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx, uint64_t amount, const cryptonote::subaddress_index& subaddr_index) override {
+      std::cout << "wallet2_zmq_publisher::on_unconfirmed_money_received()" << std::endl;
+      m_zmq_pub->send_unconfirmed_money_received(height, txid, cn_tx, amount, subaddr_index);
+    }
+
+    void on_money_received(uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx, uint64_t amount, const cryptonote::subaddress_index& subaddr_index, bool is_change, uint64_t unlock_height) override {
+      std::cout << "wallet2_zmq_publisher::on_money_received()" << std::endl;
+      m_zmq_pub->send_money_received(height, txid, cn_tx, amount, subaddr_index, is_change, unlock_height);
+    }
+
+    void on_money_spent(uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx_in, uint64_t amount, const cryptonote::transaction& cn_tx_out, const cryptonote::subaddress_index& subaddr_index) override {
+      std::cout << "wallet2_zmq_publisher::on_money_spent()" << std::endl;
+      m_zmq_pub->send_money_spent(height, txid, cn_tx_in, amount, cn_tx_out, subaddr_index);
+    }
+
+  private:
+    std::shared_ptr<cryptonote::listener::zmq_pub> m_zmq_pub;
+  };
+
   /************************************************************************/
   /*                                                                      */
   /************************************************************************/
@@ -63,6 +102,7 @@ namespace tools
     void set_wallet(wallet2 *cr);
 
   private:
+    std::unique_ptr<t_internals> mp_internals;
 
     CHAIN_HTTP_TO_MAP2(connection_context); //forward http requests to uri map
 
@@ -272,5 +312,6 @@ namespace tools
       const boost::program_options::variables_map *m_vm;
       uint32_t m_auto_refresh_period;
       boost::posix_time::ptime m_last_auto_refresh_time;
+      wallet2_zmq_publisher *m_zmq_publisher;
   };
 }
