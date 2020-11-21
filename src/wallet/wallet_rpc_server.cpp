@@ -54,6 +54,9 @@ using namespace epee;
 #include "rpc/rpc_args.h"
 #include "rpc/core_rpc_server_commands_defs.h"
 #include "daemonizer/daemonizer.h"
+#include "rpc/message.h"
+#include "rpc/zmq_server.h"
+#include "wallet_rpc_handler.h"
 
 #undef MONERO_DEFAULT_LOG_CATEGORY
 #define MONERO_DEFAULT_LOG_CATEGORY "wallet.rpc"
@@ -67,6 +70,35 @@ namespace
   const command_line::arg_descriptor<bool> arg_restricted = {"restricted-rpc", "Restricts to view-only commands", false};
   const command_line::arg_descriptor<std::string> arg_wallet_dir = {"wallet-dir", "Directory for newly created wallets"};
   const command_line::arg_descriptor<bool> arg_prompt_for_password = {"prompt-for-password", "Prompts for password when not provided", false};
+
+  const command_line::arg_descriptor<std::string> arg_zmq_rpc_bind_ip   = {
+    "zmq-rpc-bind-ip"
+      , "IP for ZMQ RPC server to listen on"
+      , "127.0.0.1"
+  };
+
+  const command_line::arg_descriptor<std::string, false, true, 2> arg_zmq_rpc_bind_port = {
+    "zmq-rpc-bind-port"
+  , "Port for ZMQ RPC server to listen on"
+  , std::to_string(config::ZMQ_WALLET_RPC_DEFAULT_PORT)
+  , {{ &cryptonote::arg_testnet_on, &cryptonote::arg_stagenet_on }}
+  , [](std::array<bool, 2> testnet_stagenet, bool defaulted, std::string val)->std::string {
+      if (testnet_stagenet[0] && defaulted)
+        return std::to_string(config::testnet::ZMQ_WALLET_RPC_DEFAULT_PORT);
+      if (testnet_stagenet[1] && defaulted)
+        return std::to_string(config::stagenet::ZMQ_WALLET_RPC_DEFAULT_PORT);
+      return val;
+    }
+  };
+  const command_line::arg_descriptor<std::vector<std::string>> arg_zmq_pub = {
+    "zmq-pub"
+  , "Address for ZMQ pub - tcp://ip:port or ipc://path"
+  };
+
+  const command_line::arg_descriptor<bool> arg_zmq_rpc_disabled = {
+    "no-zmq"
+  , "Disable ZMQ RPC server"
+  };
 
   constexpr const char default_rpc_username[] = "monero";
 
@@ -108,6 +140,58 @@ namespace
 
 namespace tools
 {
+  struct zmq_internals
+  {
+    explicit zmq_internals()
+      : rpc_handler{}
+      , server{rpc_handler}
+    {}
+
+    cryptonote::rpc::WalletRpcHandler rpc_handler;
+    cryptonote::rpc::ZmqServer server;
+  };
+
+  struct t_internals {
+  private:
+  public:
+    std::unique_ptr<zmq_internals> zmq;
+    std::shared_ptr<cryptonote::listener::zmq_pub> m_shared_zmq;
+
+    t_internals(
+        boost::program_options::variables_map const & vm
+      )
+      : zmq{nullptr}
+    {
+
+      if (!command_line::get_arg(vm, arg_zmq_rpc_disabled))
+      {
+        zmq.reset(new zmq_internals{});
+
+        const std::string zmq_port = command_line::get_arg(vm, arg_zmq_rpc_bind_port);
+        const std::string zmq_address = command_line::get_arg(vm, arg_zmq_rpc_bind_ip);
+
+        if (!zmq->server.init_rpc(zmq_address, zmq_port))
+          throw std::runtime_error{"Failed to add TCP socket(" + zmq_address + ":" + zmq_port + ") to ZMQ RPC Server"};
+
+        std::cout << "ZMQ bound to address and port " << zmq_address << ", " << zmq_port << std::endl;
+
+        const std::vector<std::string> zmq_pub = command_line::get_arg(vm, arg_zmq_pub);
+        if (!zmq_pub.empty() && !(m_shared_zmq = zmq->server.init_pub(epee::to_span(zmq_pub))))
+          throw std::runtime_error{"Failed to initialize zmq_pub"};
+
+        if (m_shared_zmq)
+        {
+          std::cout << "wallet rpc is shared so registering listeners!!!" << std::endl;
+          //core.get().get_blockchain_storage().add_block_notify(cryptonote::listener::zmq_pub::chain_main{shared});
+          //core.get().set_txpool_listener(cryptonote::listener::zmq_pub::txpool_add{shared});
+        } else
+        {
+          std::cout << "Wait... wallet rpc is not shared... so not adding listeners" << std:: endl;
+        }
+      }
+    }
+  };
+
   const char* wallet_rpc_server::tr(const char* str)
   {
     return i18n_translate(str, "tools::wallet_rpc_server");
@@ -131,6 +215,11 @@ namespace tools
   //------------------------------------------------------------------------------------------------------------------------------
   bool wallet_rpc_server::run()
   {
+    if (mp_internals->zmq)
+      mp_internals->zmq->server.run();
+    else
+      MINFO("ZMQ server disabled");
+
     m_stop = false;
     m_net_server.add_idle_handler([this](){
       if (m_auto_refresh_period == 0) // disabled
@@ -149,6 +238,12 @@ namespace tools
       if (m_stop.load(std::memory_order_relaxed))
       {
         send_stop_signal();
+
+        std::cout << "STOPPING ZMQ SERVER" << std::endl;
+        if (mp_internals->zmq)  // TODO (woodser): part of send_stop_signal()?
+          mp_internals->zmq->server.stop();
+        std::cout << "DONE STOPPING ZMQ SERVER" << std::endl;
+
         return false;
       }
       return true;
@@ -167,6 +262,9 @@ namespace tools
       delete m_wallet;
       m_wallet = NULL;
     }
+
+    delete m_zmq_publisher;
+    mp_internals.reset(nullptr); // Ensure resources are cleaned up before we return
   }
   //------------------------------------------------------------------------------------------------------------------------------
   bool wallet_rpc_server::init(const boost::program_options::variables_map *vm)
@@ -176,6 +274,8 @@ namespace tools
       return false;
 
     m_vm = vm;
+
+    mp_internals = std::unique_ptr<t_internals>(new t_internals{m_vm});
 
     boost::optional<epee::net_utils::http::login> http_login{};
     std::string bind_port = command_line::get_arg(*m_vm, arg_rpc_bind_port);
@@ -3193,6 +3293,16 @@ namespace tools
       delete m_wallet;
     }
     m_wallet = wal.release();
+
+    std::cout << "setting wallet listener in create_wallet..." << std::endl;
+    if (mp_internals->m_shared_zmq) {
+      std::cout << "zmq is enabled so need to register listener with wallet!!!" << std::endl;
+      m_zmq_publisher = new wallet2_zmq_publisher(mp_internals->m_shared_zmq);  // TODO (woodser): ensure this is always released
+      m_wallet->callback(m_zmq_publisher);
+    } else {
+      std::cout << "zmq is disabled so not registering listener with wallet..." << std::endl;
+    }
+
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
@@ -3264,6 +3374,16 @@ namespace tools
     if (m_wallet)
       delete m_wallet;
     m_wallet = wal.release();
+
+    std::cout << "setting wallet listener in open_wallet..." << std::endl;
+    if (mp_internals->m_shared_zmq) {
+      std::cout << "zmq is enabled so need to register listener with wallet!!!" << std::endl;
+      m_zmq_publisher = new wallet2_zmq_publisher(mp_internals->m_shared_zmq);  // TODO (woodser): ensure this is always released
+      m_wallet->callback(m_zmq_publisher);
+    } else {
+      std::cout << "zmq is disabled so not registering listener with wallet..." << std::endl;
+    }
+
     return true;
   }
   //------------------------------------------------------------------------------------------------------------------------------
@@ -4544,6 +4664,10 @@ int main(int argc, char** argv) {
   command_line::add_arg(desc_params, arg_wallet_dir);
   command_line::add_arg(desc_params, arg_prompt_for_password);
   command_line::add_arg(desc_params, arg_rpc_client_secret_key);
+  command_line::add_arg(desc_params, arg_zmq_rpc_bind_ip);
+  command_line::add_arg(desc_params, arg_zmq_rpc_bind_port);
+  command_line::add_arg(desc_params, arg_zmq_pub);
+  command_line::add_arg(desc_params, arg_zmq_rpc_disabled);
 
   daemonizer::init_options(hidden_options, desc_params);
   desc_params.add(hidden_options);

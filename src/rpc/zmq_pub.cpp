@@ -43,7 +43,6 @@
 #include <utility>
 
 #include "common/expect.h"
-#include "crypto/crypto.h"
 #include "cryptonote_basic/cryptonote_format_utils.h"
 #include "cryptonote_basic/events.h"
 #include "misc_log_ex.h"
@@ -58,6 +57,9 @@ namespace
 
   using chain_writer =  void(epee::byte_stream&, std::uint64_t, epee::span<const cryptonote::block>);
   using txpool_writer = void(epee::byte_stream&, epee::span<const cryptonote::txpool_event>);
+  using unconfirmed_money_received_writer = void(epee::byte_stream&, uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx, uint64_t amount, const cryptonote::subaddress_index& subaddr_index);
+  using money_received_writer = void(epee::byte_stream&, uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx, uint64_t amount, const cryptonote::subaddress_index& subaddr_index, bool is_change, uint64_t unlock_height);
+  using money_spent_writer = void(epee::byte_stream&, uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx_in, uint64_t amount, const cryptonote::transaction& cn_tx_out, const cryptonote::subaddress_index& subaddr_index);
 
   template<typename F>
   struct context
@@ -122,6 +124,39 @@ namespace
     const cryptonote::transaction& tx;
   };
 
+  //! Object for "full" unconfirmed_money_received serialization
+  struct full_unconfirmed_money_received
+  {
+    const std::uint64_t height;
+    const crypto::hash& txid;
+    const cryptonote::transaction& cn_tx;
+    const std::uint64_t amount;
+    const cryptonote::subaddress_index& subaddr_index;
+  };
+
+  //! Object for "full" money_received serialization
+  struct full_money_received
+  {
+    const std::uint64_t height;
+    const crypto::hash &txid;
+    const cryptonote::transaction& cn_tx;
+    const std::uint64_t amount;
+    const cryptonote::subaddress_index& subaddr_index;
+    bool is_change;
+    const std::uint64_t unlock_height;
+  };
+
+  //! Object for "full" money_spent serialization
+  struct full_money_spent
+  {
+    const std::uint64_t height;
+    const crypto::hash &txid;
+    const cryptonote::transaction& cn_tx_in;
+    const uint64_t amount;
+    const cryptonote::transaction& cn_tx_out;
+    const cryptonote::subaddress_index& subaddr_index;
+  };
+
   void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const minimal_chain self)
   {
     namespace adapt = boost::adaptors;
@@ -159,6 +194,51 @@ namespace
     dest.EndObject();
   }
 
+  void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const full_unconfirmed_money_received self)
+  {
+    std::cout << "toJsonValue(full_unconfirmed_money_received)" << std::endl;
+    // TODO (woodser): name correctly, remove redundant e.g. height in tx?
+    dest.StartObject();
+    INSERT_INTO_JSON_OBJECT(dest, height, self.height);
+    INSERT_INTO_JSON_OBJECT(dest, txid, self.txid);
+    INSERT_INTO_JSON_OBJECT(dest, tx, self.cn_tx);
+    INSERT_INTO_JSON_OBJECT(dest, amount, self.amount);
+    INSERT_INTO_JSON_OBJECT(dest, subaddr_index_major, self.subaddr_index.major);  // TODO (woodser): how to serialize as e.g. {major: 0, minor: 1} ?
+    INSERT_INTO_JSON_OBJECT(dest, subaddr_index_minor, self.subaddr_index.minor);
+    dest.EndObject();
+  }
+
+  void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const full_money_received self)
+  {
+    std::cout << "toJsonValue(full_money_received)" << std::endl;
+    // TODO (woodser): name correctly, remove redundant e.g. height in tx?
+    dest.StartObject();
+    INSERT_INTO_JSON_OBJECT(dest, height, self.height);
+    INSERT_INTO_JSON_OBJECT(dest, txid, self.txid);
+    INSERT_INTO_JSON_OBJECT(dest, tx, self.cn_tx);
+    INSERT_INTO_JSON_OBJECT(dest, amount, self.amount);
+    INSERT_INTO_JSON_OBJECT(dest, subaddr_index_major, self.subaddr_index.major);  // TODO (woodser): how to serialize as e.g. {major: 0, minor: 1} ?
+    INSERT_INTO_JSON_OBJECT(dest, subaddr_index_minor, self.subaddr_index.minor);
+    INSERT_INTO_JSON_OBJECT(dest, is_change, self.is_change);
+    INSERT_INTO_JSON_OBJECT(dest, unlock_height, self.unlock_height);
+    dest.EndObject();
+  }
+
+  void toJsonValue(rapidjson::Writer<epee::byte_stream>& dest, const full_money_spent self)
+  {
+    std::cout << "toJsonValue(full_money_spent)" << std::endl;
+    // TODO (woodser): name correctly, remove redundant e.g. height in tx?
+    dest.StartObject();
+    INSERT_INTO_JSON_OBJECT(dest, height, self.height);
+    INSERT_INTO_JSON_OBJECT(dest, txid, self.txid);
+    INSERT_INTO_JSON_OBJECT(dest, tx_in, self.cn_tx_in);
+    INSERT_INTO_JSON_OBJECT(dest, amount, self.amount);
+    INSERT_INTO_JSON_OBJECT(dest, tx_out, self.cn_tx_out);
+    INSERT_INTO_JSON_OBJECT(dest, subaddr_index_major, self.subaddr_index.major);  // TODO (woodser): how to serialize as e.g. {major: 0, minor: 1} ?
+    INSERT_INTO_JSON_OBJECT(dest, subaddr_index_minor, self.subaddr_index.minor);
+    dest.EndObject();
+  }
+
   void json_full_chain(epee::byte_stream& buf, const std::uint64_t height, const epee::span<const cryptonote::block> blocks)
   {
     json_pub(buf, blocks);
@@ -192,6 +272,57 @@ namespace
     json_pub(buf, (txes | adapt::filtered(is_valid{}) | adapt::transformed(to_minimal_tx)));
   }
 
+  void json_full_unconfirmed_money_received(epee::byte_stream& buf, uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx, uint64_t amount, const cryptonote::subaddress_index& subaddr_index)
+  {
+    std::cout << "json_full_unconfirmed_money_received()" << std::endl;
+    json_pub(buf, full_unconfirmed_money_received{height, txid, cn_tx, amount, subaddr_index});
+  }
+
+  void json_minimal_unconfirmed_money_received(epee::byte_stream& buf, uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx, uint64_t amount, const cryptonote::subaddress_index& subaddr_index)
+  {
+    std::cout << "json_minimal_unconfirmed_money_received()" << std::endl;
+//    namespace adapt = boost::adaptors;
+//    const auto to_minimal_tx = [](const cryptonote::txpool_event& event)
+//    {
+//      return minimal_txpool{event.tx};
+//    };
+//    json_pub(buf, (txes | adapt::filtered(is_valid{}) | adapt::transformed(to_minimal_tx)));
+  }
+
+  void json_full_on_money_received(epee::byte_stream& buf, uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx, uint64_t amount, const cryptonote::subaddress_index& subaddr_index, bool is_change, uint64_t unlock_height)
+  {
+    std::cout << "json_full_on_money_received()" << std::endl;
+    json_pub(buf, full_money_received{height, txid, cn_tx, amount, subaddr_index, is_change, unlock_height});
+  }
+
+  void json_minimal_on_money_received(epee::byte_stream& buf, uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx, uint64_t amount, const cryptonote::subaddress_index& subaddr_index, bool is_change, uint64_t unlock_height)
+  {
+    std::cout << "json_minimal_on_money_received()" << std::endl;
+//    namespace adapt = boost::adaptors;
+//    const auto to_minimal_tx = [](const cryptonote::txpool_event& event)
+//    {
+//      return minimal_txpool{event.tx};
+//    };
+//    json_pub(buf, (txes | adapt::filtered(is_valid{}) | adapt::transformed(to_minimal_tx)));
+  }
+
+  void json_full_on_money_spent(epee::byte_stream& buf, uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx_in, uint64_t amount, const cryptonote::transaction& cn_tx_out, const cryptonote::subaddress_index& subaddr_index)
+  {
+    std::cout << "json_full_on_money_received()" << std::endl;
+    json_pub(buf, full_money_spent{height, txid, cn_tx_in, amount, cn_tx_out, subaddr_index});
+  }
+
+  void json_minimal_on_money_spent(epee::byte_stream& buf, uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx_in, uint64_t amount, const cryptonote::transaction& cn_tx_out, const cryptonote::subaddress_index& subaddr_index)
+  {
+    std::cout << "json_minimal_on_money_received()" << std::endl;
+//    namespace adapt = boost::adaptors;
+//    const auto to_minimal_tx = [](const cryptonote::txpool_event& event)
+//    {
+//      return minimal_txpool{event.tx};
+//    };
+//    json_pub(buf, (txes | adapt::filtered(is_valid{}) | adapt::transformed(to_minimal_tx)));
+  }
+
   constexpr const std::array<context<chain_writer>, 2> chain_contexts =
   {{
     {u8"json-full-chain_main", json_full_chain},
@@ -204,9 +335,28 @@ namespace
     {u8"json-minimal-txpool_add", json_minimal_txpool}
   }};
 
+  constexpr const std::array<context<unconfirmed_money_received_writer>, 2> unconfirmed_money_received_contexts =
+  {{
+    {u8"json-full-unconfirmed_money_received", json_full_unconfirmed_money_received},
+    {u8"json-minimal-unconfirmed_money_received", json_minimal_unconfirmed_money_received}
+  }};
+
+  constexpr const std::array<context<money_received_writer>, 2> money_received_contexts =
+  {{
+    {u8"json-full-money_received", json_full_on_money_received},
+    {u8"json-minimal-money_received", json_minimal_on_money_received}
+  }};
+
+  constexpr const std::array<context<money_spent_writer>, 2> money_spent_contexts =
+  {{
+    {u8"json-full-money_spent", json_full_on_money_spent},
+    {u8"json-minimal-money_spent", json_minimal_on_money_spent}
+  }};
+
   template<typename T, std::size_t N>
   epee::span<const context<T>> get_range(const std::array<context<T>, N>& contexts, const boost::string_ref value)
   {
+    std::cout << "zmq_pub::get_range() called!!!" << std::endl;
     const auto not_prefix = [](const boost::string_ref lhs, const context<T>& rhs)
     {
       return !(boost::string_ref{rhs.name}.starts_with(lhs));
@@ -220,6 +370,7 @@ namespace
   template<std::size_t N, typename T>
   void add_subscriptions(std::array<std::size_t, N>& subs, const epee::span<const context<T>> range, context<T> const* const first)
   {
+    std::cout << "zmq_pub::add_subscriptions() called!!!" << std::endl;
     assert(range.size() <= N);
     assert(range.begin() - first <= N - range.size());
 
@@ -233,6 +384,7 @@ namespace
   template<std::size_t N, typename T>
   void remove_subscriptions(std::array<std::size_t, N>& subs, const epee::span<const context<T>> range, context<T> const* const first)
   {
+    std::cout << "zmq_pub::remove_subscriptions() called!!!" << std::endl;
     assert(range.size() <= N);
     assert(range.begin() - first <= N - range.size());
 
@@ -322,6 +474,8 @@ zmq_pub::zmq_pub(void* context)
   : relay_(),
     chain_subs_{{0}},
     txpool_subs_{{0}},
+    unconfirmed_money_received_subs_{{0}},
+    money_received_subs_{{0}},
     sync_()
 {
   if (!context)
@@ -342,6 +496,7 @@ zmq_pub::~zmq_pub()
 
 bool zmq_pub::sub_request(boost::string_ref message)
 {
+  std::cout << "zmq_pub::sub_request() called!!!" << std::endl;
   if (!message.empty())
   {
     const char tag = message[0];
@@ -349,8 +504,11 @@ bool zmq_pub::sub_request(boost::string_ref message)
 
     const auto chain_range = get_range(chain_contexts, message);
     const auto txpool_range = get_range(txpool_contexts, message);
+    const auto unconfirmed_money_received_range = get_range(unconfirmed_money_received_contexts, message);
+    const auto money_received_range = get_range(money_received_contexts, message);
+    const auto money_spent_range = get_range(money_spent_contexts, message);
 
-    if (!chain_range.empty() || !txpool_range.empty())
+    if (!chain_range.empty() || !txpool_range.empty() || !unconfirmed_money_received_range.empty() || !money_received_range.empty() || !money_spent_range.empty())
     {
       MDEBUG("Client " << (tag ? "subscribed" : "unsubscribed") << " to " <<
              chain_range.size() << " chain topic(s) and " << txpool_range.size() << " txpool topic(s)");
@@ -361,10 +519,16 @@ bool zmq_pub::sub_request(boost::string_ref message)
       case 0:
         remove_subscriptions(chain_subs_, chain_range, chain_contexts.begin());
         remove_subscriptions(txpool_subs_, txpool_range, txpool_contexts.begin());
+        remove_subscriptions(unconfirmed_money_received_subs_, unconfirmed_money_received_range, unconfirmed_money_received_contexts.begin());
+        remove_subscriptions(money_received_subs_, money_received_range, money_received_contexts.begin());
+        remove_subscriptions(money_spent_subs_, money_spent_range, money_spent_contexts.begin());
         return true;
       case 1:
         add_subscriptions(chain_subs_, chain_range, chain_contexts.begin());
         add_subscriptions(txpool_subs_, txpool_range, txpool_contexts.begin());
+        add_subscriptions(unconfirmed_money_received_subs_, unconfirmed_money_received_range, unconfirmed_money_received_contexts.begin());
+        add_subscriptions(money_received_subs_, money_received_range, money_received_contexts.begin());
+        add_subscriptions(money_spent_subs_, money_spent_range, money_spent_contexts.begin());
         return true;
       default:
         break;
@@ -377,6 +541,7 @@ bool zmq_pub::sub_request(boost::string_ref message)
 
 bool zmq_pub::relay_to_pub(void* const relay, void* const pub)
 {
+  std::cout << "zmq_pub::relay_to_pub() called!!!" << std::endl;
   const expect<bool> relayed = relay_block_pub(relay, pub);
   if (!relayed)
   {
@@ -409,6 +574,7 @@ bool zmq_pub::relay_to_pub(void* const relay, void* const pub)
 
 std::size_t zmq_pub::send_chain_main(const std::uint64_t height, const epee::span<const cryptonote::block> blocks)
 {
+  std::cout << "zmq_pub::send_chain_main() called!!!" << std::endl;
   if (blocks.empty())
     return 0;
 
@@ -438,6 +604,7 @@ std::size_t zmq_pub::send_chain_main(const std::uint64_t height, const epee::spa
 
 std::size_t zmq_pub::send_txpool_add(std::vector<txpool_event> txes)
 {
+  std::cout << "zmq_pub::send_txpool_add() called!!!" << std::endl;
   if (txes.empty())
     return 0;
 
@@ -459,6 +626,7 @@ std::size_t zmq_pub::send_txpool_add(std::vector<txpool_event> txes)
 
 void zmq_pub::chain_main::operator()(const std::uint64_t height, epee::span<const cryptonote::block> blocks) const
 {
+  std::cout << "zmq_pub::chain_main() called!!!" << std::endl;
   const std::shared_ptr<zmq_pub> self = self_.lock();
   if (self)
     self->send_chain_main(height, blocks);
@@ -468,6 +636,7 @@ void zmq_pub::chain_main::operator()(const std::uint64_t height, epee::span<cons
 
 void zmq_pub::txpool_add::operator()(std::vector<cryptonote::txpool_event> txes) const
 {
+  std::cout << "zmq_pub::txpool_add() called!!!" << std::endl;
   const std::shared_ptr<zmq_pub> self = self_.lock();
   if (self)
       self->send_txpool_add(std::move(txes));
@@ -475,4 +644,74 @@ void zmq_pub::txpool_add::operator()(std::vector<cryptonote::txpool_event> txes)
     MERROR("Unable to send ZMQ/Pub - ZMQ server destroyed");
 }
 
+std::size_t zmq_pub::send_unconfirmed_money_received(uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx, uint64_t amount, const cryptonote::subaddress_index& subaddr_index)
+{
+  std::cout << "zmq_pub::send_unconfirmed_money_received() called!!!" << std::endl;
+
+  boost::unique_lock<boost::mutex> guard{sync_};
+
+  const auto subs_copy = unconfirmed_money_received_subs_;
+  guard.unlock();
+
+  std::cout << "checking subss.." << std::endl;
+  for (const std::size_t sub : subs_copy)
+  {
+    if (sub)
+    {
+        std::cout << "supposedly making pubs for unconfirmed_money_received()?" << std::endl;
+        auto messages = make_pubs(subs_copy, unconfirmed_money_received_contexts, height, txid, cn_tx, amount, subaddr_index);
+        guard.lock();
+        return send_messages(relay_.get(), messages);
+    }
+    else
+    {
+      std::cout << "!sub !!!!!!!!!!" << std::endl;
+    }
+  }
+  return 0;
+}
+
+std::size_t zmq_pub::send_money_received(uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx, uint64_t amount, const cryptonote::subaddress_index& subaddr_index, bool is_change, uint64_t unlock_height)
+{
+  std::cout << "zmq_pub::send_money_received() called!!!" << std::endl;
+
+  boost::unique_lock<boost::mutex> guard{sync_};
+
+  const auto subs_copy = money_received_subs_;
+  guard.unlock();
+
+  for (const std::size_t sub : subs_copy)
+  {
+    if (sub)
+    {
+        std::cout << "supposedly making pubs for money_received()?" << std::endl;
+        auto messages = make_pubs(subs_copy, money_received_contexts, height, txid, cn_tx, amount, subaddr_index, is_change, unlock_height);
+        guard.lock();
+        return send_messages(relay_.get(), messages);
+    }
+  }
+  return 0;
+}
+
+std::size_t zmq_pub::send_money_spent(uint64_t height, const crypto::hash &txid, const cryptonote::transaction& cn_tx_in, uint64_t amount, const cryptonote::transaction& cn_tx_out, const cryptonote::subaddress_index& subaddr_index)
+{
+  std::cout << "zmq_pub::send_money_spent() called!!!" << std::endl;
+
+  boost::unique_lock<boost::mutex> guard{sync_};
+
+  const auto subs_copy = money_spent_subs_;
+  guard.unlock();
+
+  for (const std::size_t sub : subs_copy)
+  {
+    if (sub)
+    {
+        std::cout << "supposedly making pubs for money_spent()?" << std::endl;
+        auto messages = make_pubs(subs_copy, money_spent_contexts, height, txid, cn_tx_in, amount, cn_tx_out, subaddr_index);
+        guard.lock();
+        return send_messages(relay_.get(), messages);
+    }
+  }
+  return 0;
+}
 }}
