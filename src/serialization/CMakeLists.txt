@@ -27,6 +27,7 @@
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 set(serialization_sources
+  backward-compat.cpp
   json_object.cpp)
 
 set(serialization_headers)

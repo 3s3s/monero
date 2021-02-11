@@ -30,7 +30,9 @@
 
 #pragma once
 #include <memory>
+#include <boost/type_traits/make_unsigned.hpp>
 #include "serialization.h"
+#include "backward-compat.h"
 
 namespace serialization
 {
@@ -42,12 +44,31 @@ namespace serialization
       return ::do_serialize(ar, e);
     }
 
-    template <typename Archive>
-    bool serialize_pair_element(Archive& ar, uint64_t& e)
-    {
-      ar.serialize_varint(e);
-      return true;
+#define PAIR_VARINT_SERIALIZER(type) \
+    template <typename Archive> \
+    bool serialize_pair_element(Archive& ar, type& e) \
+    { \
+      if (serialization_size_t_backward_compat && !typename Archive::is_saving() && !std::is_same<uint64_t, type>()) \
+        ::do_serialize(ar, e); \
+      else \
+        ar.serialize_varint(e); \
+      return true; \
     }
+
+#define PAIR_VARINT_SERIALIZER_2(signed_type, unsigned_type) \
+  PAIR_VARINT_SERIALIZER(unsigned_type) \
+  template<typename Archive> \
+  bool serialize_pair_element(Archive& ar, signed_type& e) \
+  { \
+    return serialize_container_element(ar, *(typename boost::make_unsigned<signed_type>::type *)(&e)); \
+  }
+
+PAIR_VARINT_SERIALIZER_2(int64_t, uint64_t)
+PAIR_VARINT_SERIALIZER_2(int32_t, uint32_t)
+PAIR_VARINT_SERIALIZER_2(int16_t, uint16_t)
+#ifdef __APPLE__
+PAIR_VARINT_SERIALIZER_2(ssize_t, size_t)
+#endif
   }
 }
 
