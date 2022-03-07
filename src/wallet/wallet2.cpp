@@ -2497,7 +2497,11 @@ void wallet2::process_new_transaction(const crypto::hash &txid, const cryptonote
         if (emplace_or_replace(m_unconfirmed_payments, payment_id, pool_payment_details{payment, double_spend_seen}))
           all_same = false;
         if (0 != m_callback)
+        {
+          if (!all_same && double_spend_seen)
+            m_callback->on_double_spend_seen(height, txid, tx, payment.m_amount, payment.m_subaddr_index);
           m_callback->on_unconfirmed_money_received(height, txid, tx, payment.m_amount, payment.m_subaddr_index);
+        }
       }
       else
         m_payments.emplace(payment_id, payment);
