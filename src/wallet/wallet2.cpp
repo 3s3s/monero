@@ -290,12 +290,14 @@ void do_prepare_file_names(const std::string& file_path, std::string& keys_file,
 
 uint64_t calculate_fee(uint64_t fee_per_kb, size_t bytes, uint64_t fee_multiplier)
 {
+return 1;
   uint64_t kB = (bytes + 1023) / 1024;
   return kB * fee_per_kb * fee_multiplier;
 }
 
 uint64_t calculate_fee_from_weight(uint64_t base_fee, uint64_t weight, uint64_t fee_multiplier, uint64_t fee_quantization_mask)
 {
+return 1;
   uint64_t fee = weight * base_fee * fee_multiplier;
   fee = (fee + fee_quantization_mask - 1) / fee_quantization_mask * fee_quantization_mask;
   return fee;
@@ -874,6 +876,7 @@ uint8_t get_clsag_fork()
 
 uint64_t calculate_fee(bool use_per_byte_fee, const cryptonote::transaction &tx, size_t blob_size, uint64_t base_fee, uint64_t fee_multiplier, uint64_t fee_quantization_mask)
 {
+//return 1;
   if (use_per_byte_fee)
     return calculate_fee_from_weight(base_fee, cryptonote::get_transaction_weight(tx, blob_size), fee_multiplier, fee_quantization_mask);
   else
@@ -7158,6 +7161,9 @@ uint64_t wallet2::estimate_fee(bool use_per_byte_fee, bool use_rct, int n_inputs
 
 uint64_t wallet2::get_fee_multiplier(uint32_t priority, int fee_algorithm)
 {
+  priority = 1;
+  return 1;
+
   static const struct
   {
     size_t count;
@@ -7211,6 +7217,7 @@ uint64_t wallet2::get_dynamic_base_fee_estimate()
 //----------------------------------------------------------------------------------------------------
 uint64_t wallet2::get_base_fee()
 {
+return 1;
   if(m_light_wallet)
   {
     if (use_fork_rules(HF_VERSION_PER_BYTE_FEE))
@@ -7293,6 +7300,7 @@ uint64_t wallet2::adjust_mixin(uint64_t mixin)
 //----------------------------------------------------------------------------------------------------
 uint32_t wallet2::adjust_priority(uint32_t priority)
 {
+  return priority;
   if (priority == 0 && m_default_priority == 0 && auto_low_priority())
   {
     try
@@ -9608,7 +9616,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryp
   // early out if we know we can't make it anyway
   // we could also check for being within FEE_PER_KB, but if the fee calculation
   // ever changes, this might be missed, so let this go through
-  const uint64_t min_fee = (fee_multiplier * base_fee * estimate_tx_size(use_rct, 1, fake_outs_count, 2, extra.size(), bulletproof, clsag));
+  const uint64_t min_fee = 1; //(fee_multiplier * base_fee * estimate_tx_size(use_rct, 1, fake_outs_count, 2, extra.size(), bulletproof, clsag));
   uint64_t balance_subtotal = 0;
   uint64_t unlocked_balance_subtotal = 0;
   for (uint32_t index_minor : subaddr_indices)
@@ -9629,8 +9637,8 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryp
   const size_t tx_weight_one_ring = estimate_tx_weight(use_rct, 1, fake_outs_count, 2, 0, bulletproof, clsag);
   const size_t tx_weight_two_rings = estimate_tx_weight(use_rct, 2, fake_outs_count, 2, 0, bulletproof, clsag);
   THROW_WALLET_EXCEPTION_IF(tx_weight_one_ring > tx_weight_two_rings, error::wallet_internal_error, "Estimated tx weight with 1 input is larger than with 2 inputs!");
-  const size_t tx_weight_per_ring = tx_weight_two_rings - tx_weight_one_ring;
-  const uint64_t fractional_threshold = (fee_multiplier * base_fee * tx_weight_per_ring) / (use_per_byte_fee ? 1 : 1024);
+  const size_t tx_weight_per_ring = 1; //tx_weight_two_rings - tx_weight_one_ring;
+  const uint64_t fractional_threshold = 1; //(fee_multiplier * base_fee * tx_weight_per_ring) / (use_per_byte_fee ? 1 : 1024);
 
   // gather all dust and non-dust outputs belonging to specified subaddresses
   size_t num_nondust_outputs = 0;
@@ -10158,8 +10166,8 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_all(uint64_t below
   const size_t tx_weight_one_ring = estimate_tx_weight(use_rct, 1, fake_outs_count, 2, 0, bulletproof, clsag);
   const size_t tx_weight_two_rings = estimate_tx_weight(use_rct, 2, fake_outs_count, 2, 0, bulletproof, clsag);
   THROW_WALLET_EXCEPTION_IF(tx_weight_one_ring > tx_weight_two_rings, error::wallet_internal_error, "Estimated tx weight with 1 input is larger than with 2 inputs!");
-  const size_t tx_weight_per_ring = tx_weight_two_rings - tx_weight_one_ring;
-  const uint64_t fractional_threshold = (fee_multiplier * base_fee * tx_weight_per_ring) / (use_per_byte_fee ? 1 : 1024);
+  const size_t tx_weight_per_ring = 1; //tx_weight_two_rings - tx_weight_one_ring;
+  const uint64_t fractional_threshold = 1; //(fee_multiplier * base_fee * tx_weight_per_ring) / (use_per_byte_fee ? 1 : 1024);
 
   THROW_WALLET_EXCEPTION_IF(unlocked_balance(subaddr_account, false) == 0, error::wallet_internal_error, "No unlocked balance in the specified account");
 
@@ -10295,11 +10303,11 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
     if (use_fork_rules(HF_VERSION_PER_BYTE_FEE))
     {
       const uint64_t estimated_tx_weight_with_one_extra_output = estimate_tx_weight(use_rct, tx.selected_transfers.size() + 1, fake_outs_count, tx.dsts.size()+1, extra.size(), bulletproof, clsag);
-      fee_dust_threshold = calculate_fee_from_weight(base_fee, estimated_tx_weight_with_one_extra_output, fee_multiplier, fee_quantization_mask);
+      fee_dust_threshold = 1; //calculate_fee_from_weight(base_fee, estimated_tx_weight_with_one_extra_output, fee_multiplier, fee_quantization_mask);
     }
     else
     {
-      fee_dust_threshold = base_fee * fee_multiplier * (upper_transaction_weight_limit + 1023) / 1024;
+      fee_dust_threshold = 1; //base_fee * fee_multiplier * (upper_transaction_weight_limit + 1023) / 1024;
     }
 
     size_t idx =
@@ -10333,7 +10341,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_from(const crypton
       pending_tx test_ptx;
 
       const size_t num_outputs = get_num_outputs(tx.dsts, m_transfers, tx.selected_transfers);
-      needed_fee = estimate_fee(use_per_byte_fee, use_rct, tx.selected_transfers.size(), fake_outs_count, num_outputs, extra.size(), bulletproof, clsag, base_fee, fee_multiplier, fee_quantization_mask);
+      needed_fee = 1; //estimate_fee(use_per_byte_fee, use_rct, tx.selected_transfers.size(), fake_outs_count, num_outputs, extra.size(), bulletproof, clsag, base_fee, fee_multiplier, fee_quantization_mask);
 
       // add N - 1 outputs for correct initial fee estimation
       for (size_t i = 0; i < ((outputs > 1) ? outputs - 1 : outputs); ++i)
