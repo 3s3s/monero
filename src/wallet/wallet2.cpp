@@ -7855,7 +7855,8 @@ void wallet2::get_outs(std::vector<std::vector<tools::wallet2::get_outs_entry>> 
   LOG_PRINT_L2("fake_outputs_count: " << fake_outputs_count);
   outs.clear();
 
-  if(m_light_wallet && fake_outputs_count > 0) {
+//  if(m_light_wallet && fake_outputs_count > 0) {
+  if (fake_outputs_count > 0) {
     light_wallet_get_outs(outs, selected_transfers, fake_outputs_count);
     return;
   }
