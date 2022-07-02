@@ -450,7 +450,7 @@ namespace tools
     struct not_enough_unlocked_money : public transfer_error
     {
       explicit not_enough_unlocked_money(std::string&& loc, uint64_t available, uint64_t tx_amount, uint64_t fee)
-        : transfer_error(std::move(loc), "not enough unlocked money")
+        : transfer_error(std::move(loc), std::string("not enough unlocked money, available = ")+cryptonote::print_money(available)+std::string(", tx_amount = ")+cryptonote::print_money(m_tx_amount))
         , m_available(available)
         , m_tx_amount(tx_amount)
       {
@@ -832,7 +832,7 @@ namespace tools
     struct get_output_distribution : public wallet_rpc_error
     {
       explicit get_output_distribution(std::string&& loc, const std::string& request)
-        : wallet_rpc_error(std::move(loc), "failed to get output distribution", request)
+        : wallet_rpc_error(std::move(loc), "failed to get output distribution (rpc)", request)
       {
       }
     };
