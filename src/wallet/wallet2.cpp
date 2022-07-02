@@ -2745,6 +2745,10 @@ void wallet2::process_parsed_blocks(uint64_t start_height, const std::vector<cry
   auto geniod = [&](const cryptonote::transaction &tx, size_t n_vouts, size_t txidx) {
     for (size_t k = 0; k < n_vouts; ++k)
     {
+        ////KZV////
+        if (k >= tx.vout.size())
+            break;
+
       const auto &o = tx.vout[k];
       if (o.target.type() == typeid(cryptonote::txout_to_key))
       {
@@ -7309,7 +7313,8 @@ uint32_t wallet2::adjust_priority(uint32_t priority)
       const bool use_per_byte_fee = use_fork_rules(HF_VERSION_PER_BYTE_FEE, 0);
       const uint64_t base_fee = get_base_fee();
       const uint64_t fee_multiplier = get_fee_multiplier(1);
-      const double fee_level = fee_multiplier * base_fee * (use_per_byte_fee ? 1 : (12/(double)13 / (double)1024));
+      const double fee_level = fee_multiplier * base_fee * (use_per_byte_fee ? 1 : 1); ////KZV////(12/(double)13 / (double)1024));
+      //const double fee_level = fee_multiplier * base_fee * (use_per_byte_fee ? 1 : (12/(double)13 / (double)1024));
       const std::vector<std::pair<uint64_t, uint64_t>> blocks = estimate_backlog({std::make_pair(fee_level, fee_level)});
       if (blocks.size() != 1)
       {
@@ -9625,6 +9630,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryp
     balance_subtotal += balance_per_subaddr[index_minor];
     unlocked_balance_subtotal += unlocked_balance_per_subaddr[index_minor].first;
   }
+
   THROW_WALLET_EXCEPTION_IF(needed_money + min_fee > balance_subtotal, error::not_enough_money,
     balance_subtotal, needed_money, 0);
   // first check overall balance is enough, then unlocked one, so we throw distinct exceptions
@@ -11925,6 +11931,8 @@ uint64_t wallet2::get_daemon_blockchain_target_height(string &err)
 
 uint64_t wallet2::get_approximate_blockchain_height() const
 {
+  return (time(NULL) - HARDFORK_14_TIME)/DIFFICULTY_TARGET_V2; ////KZV////
+
   // time of v2 fork
   const time_t fork_time = m_nettype == TESTNET ? 1448285909 : m_nettype == STAGENET ? 1520937818 : 1458748658;
   // v2 fork block
