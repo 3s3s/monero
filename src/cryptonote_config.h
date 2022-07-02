@@ -89,6 +89,8 @@
 
 ////KZV////
 
+#define HARDFORK_14_TIME             1635861310
+
 #define ORPHANED_BLOCKS_MAX_COUNT                       100
 
 
