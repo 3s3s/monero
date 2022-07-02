@@ -450,7 +450,7 @@ namespace tools
     struct not_enough_unlocked_money : public transfer_error
     {
       explicit not_enough_unlocked_money(std::string&& loc, uint64_t available, uint64_t tx_amount, uint64_t fee)
-            : transfer_error(std::move(loc), std::string(loc)+std::string("; not enough unlocked money, available = ")+cryptonote::print_money(available)+std::string(", tx_amount = ")+cryptonote::print_money(tx_amount))
+            : transfer_error((std::string&&)loc, std::string(loc)+std::string("; not enough unlocked money, available = ")+cryptonote::print_money(available)+std::string(", tx_amount = ")+cryptonote::print_money(tx_amount))
         , m_available(available)
         , m_tx_amount(tx_amount)
       {
