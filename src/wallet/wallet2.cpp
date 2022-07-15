@@ -7887,7 +7887,7 @@ void wallet2::get_outs(std::vector<std::vector<tools::wallet2::get_outs_entry>> 
         max_rct_index = std::max(max_rct_index, m_transfers[idx].m_global_output_index);
       }
     ////KZV////
-    const bool has_rct_distribution = false; //has_rct && (!rct_offsets.empty() || get_rct_distribution(rct_start_height, rct_offsets));
+    bool has_rct_distribution = has_rct && (!rct_offsets.empty() || get_rct_distribution(rct_start_height, rct_offsets));
     if (has_rct_distribution)
     {
       // check we're clear enough of rct start, to avoid corner cases below
