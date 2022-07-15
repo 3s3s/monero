@@ -9631,6 +9631,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryp
     unlocked_balance_subtotal += unlocked_balance_per_subaddr[index_minor].first;
   }
 
+  std::cout << "unlocked_balance_subtotal = " << unlocked_balance_subtotal;
   THROW_WALLET_EXCEPTION_IF(needed_money + min_fee > balance_subtotal, error::not_enough_money,
     balance_subtotal, needed_money, 0);
   // first check overall balance is enough, then unlocked one, so we throw distinct exceptions
