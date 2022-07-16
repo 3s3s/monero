@@ -5788,25 +5788,31 @@ std::map<uint32_t, uint64_t> wallet2::balance_per_subaddress(uint32_t index_majo
   }
   return amount_per_subaddr;
 }
+
+std::string g_kzvLog;
 //----------------------------------------------------------------------------------------------------
 std::map<uint32_t, std::pair<uint64_t, std::pair<uint64_t, uint64_t>>> wallet2::unlocked_balance_per_subaddress(uint32_t index_major, bool strict)
 {
   std::map<uint32_t, std::pair<uint64_t, std::pair<uint64_t, uint64_t>>> amount_per_subaddr;
   const uint64_t blockchain_height = get_blockchain_current_height();
   const uint64_t now = time(NULL);
+  g_kzvLog = "";
   for(const transfer_details& td: m_transfers)
   {
     if(td.m_subaddr_index.major == index_major && !is_spent(td, strict) && !td.m_frozen)
     {
+        g_kzvLog += "; step1";
       uint64_t amount = 0, blocks_to_unlock = 0, time_to_unlock = 0;
       if (is_transfer_unlocked(td))
       {
+          g_kzvLog += "; step2";
         amount = td.amount();
         blocks_to_unlock = 0;
         time_to_unlock = 0;
       }
       else
       {
+          g_kzvLog += "; step3";
         uint64_t unlock_height = td.m_block_height + std::max<uint64_t>(CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE, CRYPTONOTE_LOCKED_TX_ALLOWED_DELTA_BLOCKS);
         if (td.m_tx.unlock_time < CRYPTONOTE_MAX_BLOCK_NUMBER && td.m_tx.unlock_time > unlock_height)
           unlock_height = td.m_tx.unlock_time;
@@ -5817,9 +5823,13 @@ std::map<uint32_t, std::pair<uint64_t, std::pair<uint64_t, uint64_t>>> wallet2::
       }
       auto found = amount_per_subaddr.find(td.m_subaddr_index.minor);
       if (found == amount_per_subaddr.end())
+      {
+          g_kzvLog += "; step4";
         amount_per_subaddr[td.m_subaddr_index.minor] = std::make_pair(amount, std::make_pair(blocks_to_unlock, time_to_unlock));
+      }
       else
       {
+          g_kzvLog += "; step5";
         found->second.first += amount;
         found->second.second.first = std::max(found->second.second.first, blocks_to_unlock);
         found->second.second.second = std::max(found->second.second.second, time_to_unlock);
@@ -9639,9 +9649,7 @@ std::vector<wallet2::pending_tx> wallet2::create_transactions_2(std::vector<cryp
     balance_subtotal, needed_money, 0);
   // first check overall balance is enough, then unlocked one, so we throw distinct exceptions
   THROW_WALLET_EXCEPTION_IF(needed_money + min_fee > unlocked_balance_subtotal, error::not_enough_unlocked_money,
-      unlocked_balance_subtotal, needed_money, 0, "my_log ;");
-  ////KZV
-  //unlocked_balance_subtotal = balance_subtotal;
+      unlocked_balance_subtotal, needed_money, 0, g_kzvLog+" ;");
 
   for (uint32_t i : subaddr_indices)
     LOG_PRINT_L2("Candidate subaddress index for spending: " << i);
