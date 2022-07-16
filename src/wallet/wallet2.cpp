@@ -6024,7 +6024,7 @@ bool wallet2::is_transfer_unlocked(uint64_t unlock_time, uint64_t block_height)
     if(!is_tx_spendtime_unlocked(unlock_time, block_height))
       return false;
 
-    g_kzvLog += "get_blockchain_current_height() = " + get_blockchain_current_height()+"; ";
+    g_kzvLog += "get_blockchain_current_height() = " + std::string(get_blockchain_current_height())+"; ";
     if(block_height + CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE > get_blockchain_current_height())
       return false;
 
