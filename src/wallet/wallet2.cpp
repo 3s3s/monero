@@ -6019,13 +6019,16 @@ bool wallet2::is_transfer_unlocked(const transfer_details& td)
 //----------------------------------------------------------------------------------------------------
 bool wallet2::is_transfer_unlocked(uint64_t unlock_time, uint64_t block_height)
 {
-  if(!is_tx_spendtime_unlocked(unlock_time, block_height))
-    return false;
+    ////KZV
+    g_kzvLog += "; unlock_time="+std::string(unlock_time)+"; block_height="+std::string(block_height)+"; ";
+    if(!is_tx_spendtime_unlocked(unlock_time, block_height))
+      return false;
 
-  if(block_height + CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE > get_blockchain_current_height())
-    return false;
+    g_kzvLog += "get_blockchain_current_height() = " + get_blockchain_current_height()+"; ";
+    if(block_height + CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE > get_blockchain_current_height())
+      return false;
 
-  return true;
+    return true;
 }
 //----------------------------------------------------------------------------------------------------
 bool wallet2::is_tx_spendtime_unlocked(uint64_t unlock_time, uint64_t block_height)
