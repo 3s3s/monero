@@ -6020,11 +6020,11 @@ bool wallet2::is_transfer_unlocked(const transfer_details& td)
 bool wallet2::is_transfer_unlocked(uint64_t unlock_time, uint64_t block_height)
 {
     ////KZV
-    g_kzvLog += "; unlock_time="+std::string(unlock_time)+"; block_height="+std::string(block_height)+"; ";
+    g_kzvLog += "; unlock_time="+std::to_string(unlock_time)+"; block_height="+std::to_string(block_height)+"; ";
     if(!is_tx_spendtime_unlocked(unlock_time, block_height))
       return false;
 
-    g_kzvLog += "get_blockchain_current_height() = " + std::string(get_blockchain_current_height())+"; ";
+    g_kzvLog += "get_blockchain_current_height() = " + std::to_string(get_blockchain_current_height())+"; ";
     if(block_height + CRYPTONOTE_DEFAULT_TX_SPENDABLE_AGE > get_blockchain_current_height())
       return false;
 
@@ -6035,6 +6035,7 @@ bool wallet2::is_tx_spendtime_unlocked(uint64_t unlock_time, uint64_t block_heig
 {
   if(unlock_time < CRYPTONOTE_MAX_BLOCK_NUMBER)
   {
+      g_kzvLog += "step00";
     //interpret as block index
     if(get_blockchain_current_height()-1 + CRYPTONOTE_LOCKED_TX_ALLOWED_DELTA_BLOCKS >= unlock_time)
       return true;
@@ -6042,6 +6043,7 @@ bool wallet2::is_tx_spendtime_unlocked(uint64_t unlock_time, uint64_t block_heig
       return false;
   }else
   {
+      g_kzvLog += "step01";
     //interpret as time
     uint64_t adjusted_time;
     try { adjusted_time = get_daemon_adjusted_time(); }
@@ -6055,6 +6057,7 @@ bool wallet2::is_tx_spendtime_unlocked(uint64_t unlock_time, uint64_t block_heig
     else
       return false;
   }
+  g_kzvLog += "step02";
   return false;
 }
 //----------------------------------------------------------------------------------------------------
